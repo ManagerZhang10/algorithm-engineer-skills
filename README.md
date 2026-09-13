@@ -34,15 +34,32 @@ server reports about its own response.**
 | Non-standard fields in `usage` | The proxy layer's own implementation fingerprint |
 | Response id prefix | Whether the response was rewritten or forged |
 
+Every one of those lands **on the board itself**, under each drawing — not only in
+the JSON snapshot. A cell reads `in 129 (+97)` when the proxy stapled 97 tokens of
+hidden context onto your prompt, `think 0` when the channel reported zero thinking
+tokens, `think —` when it reports nothing at all (**not** the same claim), and
+`9 non-standard usage fields` when the reseller's own accounting leaks through.
+
 **One prerequisite: configure the same model on at least two lanes** — a trusted
 direct-to-vendor lane as your baseline, plus the proxy under test. Without a
 baseline every number is just an absolute value. That's also the key difference
 from fingerprinting tools: they depend on community-maintained reference
 fingerprints, whereas you usually have a real direct account to compare against.
 
-## One minute to a dashboard
+Mark the baseline explicitly with `PB_<NAME>_BASELINE=true`. Absent that flag, the
+board falls back to the lane whose channel name contains `direct` / 「直连」.
 
-No dependencies. Python standard library only.
+> **Deltas are computed only between lanes on the same model.** Never across
+> models: tokenizers differ per vendor, so a cross-model input-token difference
+> measures the tokenizer, not the proxy. A model with only one lane, or no
+> identifiable baseline, simply shows no delta — the tool does not guess.
+
+## Getting to a dashboard
+
+No dependencies. Python standard library only. Budget **15–25 minutes** the first
+time — most of it is collecting keys and base URLs for the lanes you want to
+compare. A round itself takes one to two minutes (57 s and 113 s measured on
+four-lane runs, 2026-09-13); reasoning models spend most of it thinking.
 
 ```bash
 git clone https://github.com/ManagerZhang10/pelican-proxy-check
@@ -56,13 +73,20 @@ $EDITOR ~/.config/pelican-proxy-check/lanes.env
 python3 pelican_proxy_check.py --open
 ```
 
-The last command runs every lane concurrently, writes a self-contained HTML board,
-and opens it in your browser. Keys already in your shell? Reference them instead of
-copying them into the file:
+The last command runs every lane concurrently, writes one self-contained HTML file
+(the SVGs are inlined as data URIs, so the board survives being copied or emailed
+on its own), and opens it in your browser.
+
+Keys already in your shell? Reference them instead of copying them into the file:
 
 ```bash
 PB_OPENAI_DIRECT_API_KEY=${OPENAI_API_KEY}
 ```
+
+`${VAR}` is expanded from **the environment of the shell that runs the script**,
+not from lines inside the config file — so `export` it (or `set -a; source
+your.env; set +a`) before running, otherwise the script stops and tells you which
+variable was unset.
 
 Put it on a timer and it becomes continuous monitoring — the script takes a lock,
 so a slow round never stacks on the next one.
@@ -70,6 +94,28 @@ so a slow round never stacks on the next one.
 ```bash
 python3 pelican_proxy_check.py render --open   # rebuild the board from existing snapshots, no API spend
 ```
+
+### Options
+
+| Flag | Default | What it does |
+|---|---|---|
+| `render` | — | Rebuild the board from existing snapshots, no API calls |
+| `--config PATH` | `~/.config/pelican-proxy-check/lanes.env` | Lane config to read (must be `chmod 600`) |
+| `--out DIR` | `~/.local/share/pelican-proxy-check` | Where snapshots and `index.html` go |
+| `--keep N` | `3` | How many recent rounds to keep and show |
+| `--lang zh\|en` | `zh` | Board language |
+| `--anonymize` | off | Collapse channel names to "Proxy A / Proxy B" |
+| `--open` | off | Open the board when done |
+| `--help` | — | Print usage |
+
+Two configs side by side is just two `--config` / `--out` pairs:
+
+```bash
+python3 pelican_proxy_check.py --config ~/lanes-work.env --out ~/boards/work --keep 10
+```
+
+An unknown flag is a hard error with a suggestion, never a silent no-op — a typo
+in `--anonymize` must not quietly publish a reseller's real name.
 
 ## Why a pelican
 
@@ -89,7 +135,7 @@ high. The drawing is the sensory reference; the table above is the verdict.
 ## Sharing results
 
 ```bash
-python3 pelican_proxy_check.py render --anonymize
+python3 pelican_proxy_check.py render --anonymize --lang en
 ```
 
 Channel names collapse to "Proxy A / Proxy B"; direct-to-vendor lanes keep their

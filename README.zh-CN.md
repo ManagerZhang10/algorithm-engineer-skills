@@ -23,9 +23,21 @@
 | `usage` 里的非标准字段 | 中转层的实现指纹 |
 | 响应 id 前缀 | 响应有没有被改写或伪造 |
 
+这几项都**直接落在看板上**，就印在每张图下面，不是只躺在 `run.json` 里：中转往你的 prompt 里
+塞了 97 个 token 的隐藏上下文，格子里就是 `入 129 (+97)`；通道回传了思考 token 且值为 0，
+显示 `思考 0`（高亮）；通道压根不回传这个字段，显示 `思考 — 未报` —— 这**两件事不是一回事**，
+看板上分得开；中转自己的计费字段漏进 `usage`，显示 `usage 非标 9 项`，悬停能看到字段名。
+
 **关键前提：同一个模型至少配两条通道 —— 可信的官方直连当基线，加上待验的中转。**
 没有基线，所有数字都只是绝对值。这也是本工具和同类工具最大的不同：那些工具得靠社区维护的
 参考指纹，而你手里往往真有直连账号可比。
+
+基线用 `PB_<名>_BASELINE=true` 显式标出来。不标时的回退规则：同一个模型的泳道里，
+CHANNEL 名含「直连」或 `direct` 的那条。
+
+> **入 token 的差值只在同一个 model 的泳道之间算。** 跨 model 绝对不算：各家分词器不同，
+> 跨 model 比入 token 量的是分词器，不是中转。同 model 只有一条泳道、或找不到基线时，
+> 看板直接不显示差值 —— 不瞎猜。
 
 ## 图是干什么的
 
@@ -35,9 +47,14 @@
 图本身是**感官参照**——同一道题各家画成什么样，一眼可比，也方便截图给人看。但它温度非零、
 方差很大，**单看一张图判不了任何事**。真正下结论要看上面那张表里的数字。
 
-## 三十秒上手
+## 上手
+
+只用 Python 标准库，不装依赖。但第一次跑**得留出 15–25 分钟**：时间基本都花在凑齐要对比的
+那几条泳道的 key 和 base_url 上。跑批本身一轮一到两分钟（2026-09-13 实测四条泳道 57 秒、
+113 秒各一次），大头是 reasoning 模型在思考。
 
 ```bash
+mkdir -p ~/.config/pelican-proxy-check
 cp lanes.env.example ~/.config/pelican-proxy-check/lanes.env
 chmod 600 ~/.config/pelican-proxy-check/lanes.env   # 里面是密钥
 $EDITOR ~/.config/pelican-proxy-check/lanes.env
@@ -45,12 +62,50 @@ $EDITOR ~/.config/pelican-proxy-check/lanes.env
 python3 pelican_proxy_check.py --open
 ```
 
-只用 Python 标准库，不装依赖。挂个定时器就是持续监控；脚本自带锁，上一轮没跑完不会叠上来。
+最后一条命令并发跑完所有泳道，写出**一个自包含的 HTML**（SVG 以 data URI 内联进去，
+单独把这个文件拷走或发出去，图不会裂），并在浏览器里打开。
+
+key 已经在 shell 环境里的，配置文件里用 `${VAR}` 引用就行，不必落明文：
+
+```bash
+PB_OPENAI_DIRECT_API_KEY=${OPENAI_API_KEY}
+```
+
+`${VAR}` 读的是**运行脚本那个 shell 的环境变量**，不是这个配置文件里的其他行 —— 跑之前先
+`export`（或 `set -a; source your.env; set +a`），没 export 脚本会直接停下来告诉你缺哪个变量。
+
+挂个定时器就是持续监控；脚本自带锁，上一轮没跑完不会叠上来。
+
+```bash
+python3 pelican_proxy_check.py render --open   # 只用已有快照重出看板，不花 API 钱
+```
+
+### 参数
+
+| 参数 | 默认 | 作用 |
+| --- | --- | --- |
+| `render` | — | 只用已有快照重出看板，不调 API |
+| `--config PATH` | `~/.config/pelican-proxy-check/lanes.env` | 泳道配置路径（权限必须 600） |
+| `--out DIR` | `~/.local/share/pelican-proxy-check` | 快照和 `index.html` 放哪 |
+| `--keep N` | `3` | 保留并展示最近几轮 |
+| `--lang zh\|en` | `zh` | 看板语言 |
+| `--anonymize` | 关 | 通道名抹成「中转 A / 中转 B」 |
+| `--open` | 关 | 跑完顺手打开看板 |
+| `--help` | — | 打印用法 |
+
+想同时盯两套配置，就是两组 `--config` / `--out`：
+
+```bash
+python3 pelican_proxy_check.py --config ~/lanes-work.env --out ~/boards/work --keep 10
+```
+
+写错的参数一律报错退出并提示正确写法，不会被静默忽略 —— `--anonymize` 拼错一个字母就把
+服务商真名照原样发出去，这种事不能有。
 
 ## 要外发截图时
 
 ```bash
-python3 pelican_proxy_check.py render --anonymize
+python3 pelican_proxy_check.py render --anonymize        # 英文看板加 --lang en
 ```
 
 通道名会被抹成「中转 A / 中转 B」，官方直连保留。上面那张截图就是这么出的 ——

@@ -21,6 +21,7 @@
 | --- | --- |
 | `key` / `name` / `channel` / `model` | 泳道标识、显示名、通道名、请求的模型 id |
 | `effort` | 思考档位的人读标注，来自配置里的 `PB_<名>_EFFORT` |
+| `baseline` | 这条是不是该模型的官方直连基线，来自配置里的 `PB_<名>_BASELINE`。看板拿它算入 token 差值；没有显式标记时回退到 `channel` 名里带「直连」/ `direct` 的那条 |
 | `ok` / `error` | 是否成功出图；失败原因 |
 | `latency_ms` | 总耗时 |
 | `ttft_ms` | 首个**正文**字符的耗时。reasoning 模型会先吐几千 token 思考，那段不该算进「多久开始干活」 |
@@ -31,12 +32,14 @@
 | `usage_extra` / `usage_extra_values` | `usage` 里的非标准字段名与其标量值 —— 中转层的实现指纹。第三方转售常会漏出自己的计费、缓存或上游平台字段 |
 | `text_chars` / `svg_bytes` / `path_count` | 正文字符数 / SVG 体积 / 图元数 |
 | `cheats` | 命中的绕过手段，如 `image`、`text`、`外部引用` |
+| `error_code` / `error_args` | 失败原因的机器可读形式（`truncated` / `no_svg` / `svg_invalid` / `cheats`），看板据此用别的语言重述同一条错误；`error` 始终是中文原文 |
 | `truncated` | SVG 被 max_tokens 截断 |
 
 ## 算注入量
 
-同一个 `model`、不同 `channel`，拿官方直连那条的 `prompt_tokens` 当基线，其余通道减基线即为
-注入量。题面逐字相同、思考档位也填成一样，差出来的就是被塞进去的东西。没有直连基线的模型
+同一个 `model`、不同 `channel`，拿官方直连那条（`baseline: true`）的 `prompt_tokens` 当基线，
+其余通道减基线即为注入量。**只在同一个 `model` 内部算**：各家分词器不同，跨 model 比入 token
+量的是分词器，不是中转。题面逐字相同、思考档位也填成一样，差出来的就是被塞进去的东西。没有直连基线的模型
 算不出这个差值。
 
 跨轮次看这个差值的**方差**比看它的绝对值更有信息量：

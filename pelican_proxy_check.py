@@ -8,16 +8,27 @@
 全程流式：reasoning 模型思考几分钟不吐字是常态，非流式会直接读超时。
 思考段一律丢掉，只留正文里的 <svg>。凭证只从配置文件读，任何输出里都不写 key。
 
-用法:
-    pelican_proxy_check.py                 跑一轮并刷新看板
-    pelican_proxy_check.py render          只用已有快照重出看板
-    pelican_proxy_check.py --open          跑完顺手打开看板
-    pelican_proxy_check.py --config PATH   指定泳道配置（默认 ~/.config/pelican-proxy-check/lanes.env）
-    pelican_proxy_check.py --out DIR       指定快照与看板目录（默认 ~/.local/share/pelican-proxy-check）
-    pelican_proxy_check.py --keep N        保留最近 N 轮（默认 3）
-    pelican_proxy_check.py --anonymize     看板里把通道名抹成「中转 A/B」，便于截图外发
+用法 / Usage:
+    pelican_proxy_check.py                 跑一轮并刷新看板 / run one round, refresh the board
+    pelican_proxy_check.py render          只用已有快照重出看板 / rebuild from snapshots, no API spend
+    pelican_proxy_check.py --open          跑完顺手打开看板 / open the board when done
+    pelican_proxy_check.py --config PATH   泳道配置路径 / lanes config
+                                           (默认 default: ~/.config/pelican-proxy-check/lanes.env)
+    pelican_proxy_check.py --out DIR       快照与看板目录 / snapshot + board dir
+                                           (默认 default: ~/.local/share/pelican-proxy-check)
+    pelican_proxy_check.py --keep N        保留最近 N 轮 / keep the last N rounds (默认 default: 3)
+    pelican_proxy_check.py --anonymize     通道名抹成「中转 A/B」，便于外发 / anonymise channel names
+    pelican_proxy_check.py --lang en       看板语言 / board language: zh (默认 default) | en
+    pelican_proxy_check.py --help          打印本帮助 / print this help
+
+入 token 的差值只在**同一个 model** 的泳道之间算（基线由 PB_<名>_BASELINE=true 指定，
+未指定时回退到 channel 名里带「直连」/ direct 的那条）。跨 model 不比：各家分词器不同。
+Input-token deltas are computed only between lanes on the SAME model — tokenizers differ
+across vendors, so a cross-model delta is meaningless.
 """
+import base64
 import concurrent.futures as cf
+import difflib
 import html
 import json
 import os
@@ -38,20 +49,63 @@ LOCK = ROOT / "run.lock"
 KEEP = 3
 
 
+LANG = "zh"
+
+# 已知的命令行词表。写错一个字母就静默忽略是不行的：--anonymise（英式拼写）曾经
+# 让看板照出、服务商真名原样留在 HTML 里 —— 隐私开关静默失败等于没有这个开关。
+VALUE_FLAGS = ("--config", "--out", "--keep", "--lang")
+BOOL_FLAGS = ("--open", "--anonymize", "--help", "-h")
+POSITIONALS = ("render",)
+KNOWN = VALUE_FLAGS + BOOL_FLAGS + POSITIONALS
+
+
+def bad_arg(a):
+    near = difflib.get_close_matches(a, KNOWN, n=2, cutoff=0.5)
+    hint = ("，你是不是想写 / did you mean: " + " / ".join(near)) if near else ""
+    sys.exit(f"不认识的参数 / unknown argument: {a}{hint}\n"
+             f"可用 / available: {' '.join(KNOWN)}\n"
+             f"完整帮助 / full help: {Path(sys.argv[0]).name} --help")
+
+
+def need_value(flag, rest):
+    if not rest:
+        sys.exit(f"{flag} 后面要跟一个值 / {flag} needs a value\n"
+                 f"例如 / e.g.: {flag} "
+                 + {"--config": "~/.config/pelican-proxy-check/lanes.env",
+                    "--out": "~/.local/share/pelican-proxy-check",
+                    "--keep": "3", "--lang": "en"}[flag])
+    return rest.pop(0)
+
+
 def apply_cli(argv):
-    """路径和保留轮数都可以从命令行改，好让同一份脚本服务多套配置。"""
-    global ENV_FILE, ROOT, RUNS, LOCK, KEEP
+    """路径和保留轮数都可以从命令行改，好让同一份脚本服务多套配置。
+    -h/--help 在这里就拦下来 —— 帮助不能被后面的「没有泳道配置」挡住。"""
+    global ENV_FILE, ROOT, RUNS, LOCK, KEEP, LANG
     args, rest = [], list(argv)
     while rest:
         a = rest.pop(0)
-        if a == "--config":
-            ENV_FILE = Path(rest.pop(0)).expanduser()
+        if a in ("-h", "--help"):
+            print(__doc__.strip())
+            sys.exit(0)
+        elif a == "--config":
+            ENV_FILE = Path(need_value(a, rest)).expanduser()
         elif a == "--out":
-            ROOT = Path(rest.pop(0)).expanduser()
+            ROOT = Path(need_value(a, rest)).expanduser()
         elif a == "--keep":
-            KEEP = max(1, int(rest.pop(0)))
-        else:
+            v = need_value(a, rest)
+            try:
+                KEEP = max(1, int(v))
+            except ValueError:
+                sys.exit(f"--keep 要一个整数 / --keep wants an integer, got: {v}")
+        elif a == "--lang":
+            v = need_value(a, rest).lower()
+            if v not in LABELS:
+                sys.exit(f"--lang 只支持 / only supports: {', '.join(LABELS)}（got: {v}）")
+            LANG = v
+        elif a in BOOL_FLAGS or a in POSITIONALS:
             args.append(a)
+        else:
+            bad_arg(a)
     RUNS, LOCK = ROOT / "runs", ROOT / "run.lock"
     return args
 TIMEOUT = 900          # 流式下这是「两个 chunk 之间」的上限，不是整轮上限
@@ -165,18 +219,23 @@ def lane_order(E):
 
 def lanes(E):
     """泳道全部由 lanes.env 里的 PB_<名>_* 描述，换模型换通道只改那个文件，不动代码。"""
-    out = []
+    out, broken = [], []
     for slot in lane_order(E):
         def g(k, d=None, _s=slot):
             return E.get(f"PB_{_s}_{k}", d)
         base, api_key, model = g("BASE_URL"), g("API_KEY"), g("MODEL")
-        if not (base and api_key and model):
+        # 缺一行就静默跳过是不行的：「基线 + 被测中转」成对配置里丢一条，结论直接作废
+        lack = [f"PB_{slot}_{k}" for k, v in
+                (("BASE_URL", base), ("API_KEY", api_key), ("MODEL", model)) if not v]
+        if lack:
+            broken.append(f"泳道 {slot} 缺少 / lane {slot} is missing: " + "、".join(lack))
             continue
         proto = g("PROTO", "openai")
         extra = json.loads(g("EXTRA", "{}"))
         lane = dict(key=slot.lower(), name=model, channel=g("CHANNEL", ""),
                     model=model, proto=proto, proxy=g("EGRESS_PROXY") or g("PROXY"),
-                    effort=g("EFFORT", ""), extra=extra)
+                    effort=g("EFFORT", ""), extra=extra,
+                    baseline=str(g("BASELINE", "")).strip().lower() in ("1", "true", "yes", "on"))
         if proto == "anthropic":
             lane.update(
                 url=join(base, "v1/messages"),
@@ -192,6 +251,14 @@ def lanes(E):
                       "stream_options": {"include_usage": True},
                       "messages": [{"role": "user", "content": PROMPT}], **extra})
         out.append(lane)
+    if broken:
+        sys.exit("泳道配置不完整（每条泳道至少要 BASE_URL / API_KEY / MODEL 三行）：\n"
+                 "Incomplete lane config (each lane needs BASE_URL / API_KEY / MODEL):\n  "
+                 + "\n  ".join(broken)
+                 + f"\n配置文件 / config: {ENV_FILE}")
+    if not out:
+        sys.exit(f"{ENV_FILE} 里没有可用的泳道 / no usable lane found.\n"
+                 f"照着 lanes.env.example 至少配一条 PB_<名>_BASE_URL / _API_KEY / _MODEL。")
     return out
 
 
@@ -267,7 +334,7 @@ SHAPE_RE = re.compile(r"<(path|circle|ellipse|rect|polygon|polyline|line)\b", re
 def run_lane(lane):
     rec = {"key": lane["key"], "name": lane["name"], "channel": lane["channel"],
            "model": lane["model"], "effort": lane.get("effort", ""),
-           "ok": False, "error": None}
+           "baseline": bool(lane.get("baseline")), "ok": False, "error": None}
     started = time.time()
     try:
         res = stream(lane)
@@ -286,6 +353,9 @@ def run_lane(lane):
         cut = "<svg" in text.lower()
         rec["error"] = (f"SVG 被 max_tokens 截断（正文 {len(text)} 字）" if cut
                         else f"响应里没有 <svg> 元素（正文 {len(text)} 字）")
+        # error_code/args 让看板能用别的语言重述同一条错误；error 始终保留中文原文
+        rec["error_code"] = "truncated" if cut else "no_svg"
+        rec["error_args"] = [len(text)]
         rec["truncated"] = cut
         rec["raw_text"] = text[:4000]
         return rec, None
@@ -296,11 +366,13 @@ def run_lane(lane):
         ET.fromstring(svg)
     except ET.ParseError as e:
         rec["error"] = f"SVG 不是合法 XML，浏览器渲染不出来：{e}"
+        rec["error_code"], rec["error_args"] = "svg_invalid", [str(e)]
         rec["svg_invalid"] = True
         return rec, None
     hits = cheats(svg)
     if hits:
         rec["error"] = "用了绕过作图的手段：" + "、".join(hits)
+        rec["error_code"], rec["error_args"] = "cheats", ["、".join(hits)]
         rec["cheats"] = hits
         return rec, None
     rec["ok"] = True
@@ -337,64 +409,235 @@ def do_run():
 
 
 def prune():
+    if not RUNS.is_dir():
+        return
     for old in sorted((d for d in RUNS.iterdir() if d.is_dir()), reverse=True)[KEEP:]:
         shutil.rmtree(old, ignore_errors=True)
 
 
 ANON = False  # --anonymize：出图给外人看时把通道名抹成「中转 A/B」，别点名服务商
 
+# 看板文案。默认中文，--lang en 整页切英文 —— 与其每个格子里塞「入 tok / in」这种
+# 双语短语把本来就密的证据区撑爆，不如整页只说一种语言。
+LABELS = {
+    "zh": {
+        "title": "鹈鹕骑自行车 · 模型通道横评",
+        "head_lane": "模型 / 通道",
+        "ttft": "首字", "out": "出", "shapes": "形状",
+        "in": "入", "think": "思考", "think_none": "未报",
+        "usage_extra": "usage 非标 {n} 项", "usage_title": "usage 里的非标准字段：{names}",
+        "baseline": "基线", "baseline_title": "这条是同模型的入 token 基线",
+        "delta_title": "相对同模型基线「{base}」的入 token 差：{d:+d}",
+        "id": "响应 id", "id_title": "响应 id 前缀跟同模型基线（{base}）不一致：{a} vs {b}",
+        "echo": "回显", "fail": "失败",
+        "anon_direct": "官方直连", "anon_proxy": "中转 {x}",
+        "think_zero_title": "服务端回传了这个字段，值是 0：思考被关掉了",
+        "think_none_title": "该通道不回传思考 token 字段 —— 不等于没思考",
+        "sub": ('保留最近 {keep} 轮，由旧到新从左往右；页面每 2 分钟自刷新。'
+                '同一句 <code>{prompt}</code>，同样 {max_tokens} max_tokens，全部流式。'
+                '时间为北京时间。「首字」是第一个正文字符，思考时长不计在内。'),
+        "rule": ('<b>入 token 的差值只在同一个 model 的泳道之间算</b>，'
+                 '基线是标了 <code>PB_&lt;名&gt;_BASELINE=true</code> 的那条'
+                 '（没标就取 channel 名里带「直连」/ direct 的那条）。'
+                 '跨 model 不比：各家分词器不同，比出来的数没有意义。'
+                 '<code>思考 —</code> 是该通道<b>不回传</b>这个字段，'
+                 '<code>思考 0</code> 是回传了、值就是 0 —— 后者才是思考被关掉。'),
+        "err": {"truncated": "SVG 被 max_tokens 截断（正文 {0} 字）",
+                "no_svg": "响应里没有 <svg> 元素（正文 {0} 字）",
+                "svg_invalid": "SVG 不是合法 XML，浏览器渲染不出来：{0}",
+                "cheats": "用了绕过作图的手段：{0}"},
+    },
+    "en": {
+        "title": "Pelican on a bicycle · model × channel board",
+        "head_lane": "Model / channel",
+        "ttft": "ttft", "out": "out", "shapes": "shapes",
+        "in": "in", "think": "think", "think_none": "not reported",
+        "usage_extra": "{n} non-standard usage fields",
+        "usage_title": "Non-standard fields in usage: {names}",
+        "baseline": "baseline", "baseline_title": "input-token baseline for this model",
+        "delta_title": "Input-token delta vs the same-model baseline \"{base}\": {d:+d}",
+        "id": "response id",
+        "id_title": "Response-id prefix differs from the same-model baseline ({base}): {a} vs {b}",
+        "echo": "echoed", "fail": "failed",
+        "anon_direct": "Direct", "anon_proxy": "Proxy {x}",
+        "think_zero_title": "The server reported this field and its value is 0 — reasoning was off",
+        "think_none_title": "This channel does not report thinking tokens — that is not proof of zero",
+        "sub": ('Last {keep} rounds, oldest to newest, left to right; the page refreshes every '
+                '2 minutes. Same <code>{prompt}</code>, same {max_tokens} max_tokens, all '
+                'streamed. Times are Asia/Shanghai. "ttft" is the first <i>body</i> character; '
+                'thinking time is excluded.'),
+        "rule": ('<b>Input-token deltas are computed only between lanes on the same model.</b> '
+                 'The baseline is the lane flagged <code>PB_&lt;NAME&gt;_BASELINE=true</code> '
+                 '(absent that, the lane whose channel name contains "direct" / 「直连」). '
+                 'Never across models: tokenizers differ, so a cross-model delta means nothing. '
+                 '<code>think —</code> means the channel <b>does not report</b> the field; '
+                 '<code>think 0</code> means it reported zero — only the latter is reasoning off.'),
+        "err": {"truncated": "SVG cut off by max_tokens ({0} chars of body)",
+                "no_svg": "No <svg> element in the response ({0} chars of body)",
+                "svg_invalid": "SVG is not well-formed XML, no browser will render it: {0}",
+                "cheats": "Used a shortcut instead of drawing: {0}"},
+    },
+}
+
+DIRECT_RE = re.compile(r"直连|direct", re.I)
+ID_PREFIX_RE = re.compile(r"^[A-Za-z]+[-_]")
+
+
+def id_prefix(rid):
+    """响应 id 的族前缀，如 chatcmpl- / msg_ / resp_。认不出就退回前 8 个字符。"""
+    rid = rid or ""
+    m = ID_PREFIX_RE.match(rid)
+    return m.group(0) if m else rid[:8]
+
+
+def resolve_baselines(run):
+    """给这一轮的每条泳道找同模型基线：显式 PB_<名>_BASELINE 优先，否则取 channel 名里
+    带「直连」/ direct 的那条。同 model 只有一条泳道、或找不到基线 → None，不瞎猜。
+    差值只在同一个 model 内部算：跨 model 比入 token 没有意义（分词器不同）。"""
+    by_model, out = {}, {}
+    for rec in run["lanes"]:
+        by_model.setdefault(rec.get("model") or rec.get("name") or "", []).append(rec)
+    for recs in by_model.values():
+        base = None
+        if len(recs) > 1:
+            base = (next((r for r in recs if r.get("baseline")), None)
+                    or next((r for r in recs if DIRECT_RE.search(r.get("channel") or "")), None))
+        for r in recs:
+            out[r["key"]] = base
+    return out
+
 
 def anon_channels(runs):
     """把各条通道的显示名映射成匿名标签；直连保留，其余按首次出现编号。"""
+    L = LABELS[LANG]
     mapping, nth = {}, 0
     for run in runs:
         for rec in run["lanes"]:
             ch = rec.get("channel") or ""
             if ch in mapping:
                 continue
-            if "直连" in ch or "direct" in ch.lower():
-                mapping[ch] = "官方直连"
+            if DIRECT_RE.search(ch):
+                mapping[ch] = L["anon_direct"]
             else:
-                mapping[ch] = f"中转 {chr(ord('A') + nth)}"
+                mapping[ch] = L["anon_proxy"].format(x=chr(ord("A") + nth))
                 nth += 1
     return mapping
 
 
 def load_runs():
     out = []
+    if not RUNS.is_dir():
+        return out
     for d in sorted((d for d in RUNS.iterdir() if d.is_dir()), reverse=True)[:KEEP]:
         if (d / "run.json").is_file():
             out.append(json.loads((d / "run.json").read_text(encoding="utf-8")))
     return out
 
 
-def cell(run, rec):
+def svg_src(run, rec):
+    """SVG 内联进 index.html —— 外链相对路径的话，单独把 html 发出去图全裂，
+    「self-contained」就是句空话。走 data URI 而不是把 <svg> 直接写进 DOM：
+    十几张图里的 gradient/clipPath id 会互相撞车，data URI 各自独立作用域。"""
+    p = RUNS / run["stamp"] / f'{rec["key"]}.svg'
+    try:
+        b64 = base64.b64encode(p.read_bytes()).decode()
+    except OSError:
+        return f'runs/{run["stamp"]}/{rec["key"]}.svg'   # 快照被清了就退回外链
+    return "data:image/svg+xml;base64," + b64
+
+
+def localized_error(rec):
+    L = LABELS[LANG]
+    code = rec.get("error_code")
+    if code and code in L["err"]:
+        try:
+            return L["err"][code].format(*(rec.get("error_args") or []))
+        except (IndexError, KeyError):
+            pass
+    return rec.get("error") or L["fail"]
+
+
+def cell(run, rec, base):
+    """一格 = 一条泳道在这一轮的全部证据。图是钩子，图下面这几行才是实锤。"""
+    L = LABELS[LANG]
     if not rec:
         return '<td class="miss">—</td>'
     secs = f'{rec.get("latency_ms", 0)/1000:.0f}s'
     if not rec["ok"]:
-        return (f'<td class="bad"><div class="err">{html.escape(rec["error"] or "失败")}</div>'
+        return (f'<td class="bad"><div class="err">{html.escape(localized_error(rec))}</div>'
                 f'<div class="meta">{secs}</div></td>')
     ttft = rec.get("ttft_ms")
-    meta = (f'{secs}{f" · 首字 {ttft/1000:.0f}s" if ttft else ""} · '
-            f'{rec.get("completion_tokens") or "?"} tok · {rec.get("path_count", 0)} 形状')
+    ttft_s = " · {} {:.0f}s".format(L["ttft"], ttft / 1000) if ttft else ""
+    meta = "{}{} · {} {} tok · {} {}".format(
+        secs, ttft_s, L["out"], rec.get("completion_tokens") or "?",
+        rec.get("path_count", 0), L["shapes"])
+
+    ev = []   # 证据行
+    is_base = base is not None and base.get("key") == rec.get("key")
+    pt = rec.get("prompt_tokens")
+    if pt is not None:
+        delta = ""
+        bpt = (base or {}).get("prompt_tokens")
+        if base is not None and not is_base and isinstance(bpt, int):
+            d = pt - bpt
+            if d > 0:
+                t = html.escape(L["delta_title"].format(base=base.get("channel") or base["key"], d=d))
+                delta = f' <span class="delta" title="{t}">(+{d})</span>'
+            elif d < 0:
+                t = html.escape(L["delta_title"].format(base=base.get("channel") or base["key"], d=d))
+                delta = f' <span class="delta neg" title="{t}">({d})</span>'
+        tag = (f' <span class="base" title="{html.escape(L["baseline_title"])}">'
+               f'{L["baseline"]}</span>' if is_base else "")
+        ev.append(f'<div class="ev">{L["in"]} {pt}{delta}{tag}</div>')
+
+    rt = rec.get("reasoning_tokens")
+    if rt is None:
+        # null = 该通道压根不回传这个字段，跟「回传了、值是 0」是两回事，显示上必须分开
+        ev.append(f'<div class="ev dim" title="{html.escape(L["think_none_title"])}">'
+                  f'{L["think"]} — <span class="nb">{L["think_none"]}</span></div>')
+    elif rt == 0:
+        ev.append(f'<div class="ev think0" title="{html.escape(L["think_zero_title"])}">'
+                  f'{L["think"]} 0</div>')
+    else:
+        ev.append(f'<div class="ev">{L["think"]} {rt}</div>')
+
+    extra = rec.get("usage_extra") or []
+    if extra:
+        t = html.escape(L["usage_title"].format(names="、".join(extra)))
+        ev.append(f'<div class="ev flag" title="{t}">'
+                  f'{html.escape(L["usage_extra"].format(n=len(extra)))}</div>')
+
+    rid = rec.get("response_id") or ""
+    if base is not None and not is_base and rid:
+        bp, rp = id_prefix(base.get("response_id") or ""), id_prefix(rid)
+        if bp and rp != bp:   # 一致就是噪音，只在不一致时才占一行
+            t = html.escape(L["id_title"].format(
+                base=base.get("channel") or base["key"], a=rp, b=bp))
+            ev.append(f'<div class="ev flag" title="{t}">'
+                      f'{L["id"]} {html.escape(rp)}</div>')
+
     echoed = rec.get("model_echoed")
-    drift = ("" if not echoed or echoed == rec["model"]
-             else f'<div class="drift">回显 {html.escape(echoed)}</div>')
-    return (f'<td><img src="runs/{run["stamp"]}/{rec["key"]}.svg" '
-            f'alt="{html.escape(rec["name"])}"><div class="meta">{meta}</div>{drift}</td>')
+    if echoed and echoed != rec["model"]:
+        ev.append(f'<div class="ev drift">{L["echo"]} {html.escape(echoed)}</div>')
+
+    return (f'<td><img src="{svg_src(run, rec)}" alt="{html.escape(rec["name"])}">'
+            f'<div class="meta">{meta}</div>{"".join(ev)}</td>')
 
 
 def render():
+    """有快照才出得了看板。返回 False 表示一张快照都没有，交给调用方报错。"""
     runs = load_runs()
     if not runs:
-        return
+        return False
     runs.reverse()  # load_runs 给的是新到旧；看板按时间从左往右排
+    # 基线在匿名化之前定：匿名化会重写 channel 名，别让回退规则踩到自己改出来的名字
+    bases = [resolve_baselines(r) for r in runs]
     if ANON:
         mapping = anon_channels(runs)
         for run in runs:
             for rec in run["lanes"]:
-                rec["channel"] = mapping.get(rec.get("channel") or "", "中转")
+                rec["channel"] = mapping.get(rec.get("channel") or "",
+                                             LABELS[LANG]["anon_proxy"].format(x="?"))
     by_run = [{rec["key"]: rec for rec in r["lanes"]} for r in runs]
     keys = []
     for m in by_run:
@@ -403,43 +646,62 @@ def render():
                 keys.append(k)
     rows = []
     for k in keys:
-        rec0 = next((m[k] for m in by_run if k in m), None)
-        cells = "".join(cell(runs[i], by_run[i].get(k)) for i in range(len(runs)))
+        # 行标题取**最新**那轮的记录：换了模型之后，行首还标着旧模型名、右边格子却是
+        # 新模型画的，等于看板自己在撒谎。by_run 是旧→新，所以从后往前找。
+        rec0 = next((m[k] for m in reversed(by_run) if k in m), None)
+        cells = "".join(cell(runs[i], by_run[i].get(k), bases[i].get(k))
+                        for i in range(len(runs)))
         rows.append(f'<tr><th class="lane"><div>{html.escape(rec0["name"])}</div>'
                     f'<div class="chan">{html.escape(rec0["channel"])}</div></th>{cells}</tr>')
     heads = "".join(f'<th>{html.escape(r["at"][5:16].replace("T", " "))}</th>' for r in runs)
+    L = LABELS[LANG]
+    sub = L["sub"].format(keep=KEEP, prompt=html.escape(PROMPT.split(".")[0]),
+                          max_tokens=MAX_TOKENS)
     (ROOT / "index.html").write_text(f"""<!doctype html><meta charset="utf-8">
-<title>鹈鹕骑自行车</title><meta http-equiv="refresh" content="120">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{html.escape(L["title"])}</title><meta http-equiv="refresh" content="120">
 <style>
 body{{margin:0;padding:20px;background:#f5f6f8;font:13px/1.5 -apple-system,system-ui,sans-serif;color:#1d2733}}
 h1{{font-size:17px;margin:0 0 4px}}
-p.sub{{margin:0 0 16px;color:#6b7785;max-width:760px}}
+p.sub,p.rule{{margin:0 0 10px;color:#6b7785;max-width:760px}}
+p.rule{{margin-bottom:16px;background:#fff;border-left:3px solid #17374f;padding:8px 10px;border-radius:0 4px 4px 0}}
+.scroll{{overflow-x:auto;-webkit-overflow-scrolling:touch}}
 table{{border-collapse:collapse;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:6px;overflow:hidden}}
 th,td{{border:1px solid #e3e7ec;padding:8px;vertical-align:top;text-align:center}}
 thead th{{background:#17374f;color:#fff;font-weight:600;font-size:12px}}
-th.lane{{background:#fafbfc;text-align:left;min-width:130px;font-weight:600}}
+th.lane{{background:#fafbfc;text-align:left;min-width:120px;font-weight:600}}
 th.lane .chan{{font-weight:400;color:#6b7785;font-size:11px}}
-img{{width:240px;height:240px;object-fit:contain;background:#fff;display:block}}
+img{{width:240px;height:240px;max-width:100%;object-fit:contain;background:#fff;display:block}}
 .meta{{color:#6b7785;font-size:11px;margin-top:5px}}
+.ev{{font-size:11px;text-align:left;margin-top:2px;font-variant-numeric:tabular-nums}}
+.ev.dim{{color:#98a3ae}}
+.ev .nb{{font-size:10px}}
+.delta{{color:#c0392b;font-weight:700;background:#fdecea;border-radius:3px;padding:0 3px}}
+.delta.neg{{color:#1f7a5a;background:#e8f6f0}}
+.base{{color:#41586b;background:#eef2f6;border-radius:3px;padding:0 4px;font-size:10px}}
+.think0{{color:#c0392b;font-weight:700;background:#fdecea;border-radius:3px;padding:0 3px;display:inline-block}}
+.flag{{color:#8a5a13}}
 .drift{{color:#b4761f;font-size:11px}}
 td.bad{{background:#fdf3f2}}
-td.bad .err{{color:#b4453c;font-size:11px;max-width:240px;word-break:break-all;text-align:left}}
+td.bad .err{{color:#b4453c;font-size:11px;max-width:240px;word-break:break-word;text-align:left}}
 td.miss{{color:#b7c0c9}}
 code{{background:#eef2f6;padding:1px 5px;border-radius:3px}}
 </style>
-<h1>鹈鹕骑自行车 · 模型通道横评</h1>
-<p class="sub">保留最近 {KEEP} 轮，由旧到新从左往右；页面每 2 分钟自刷新。
-同一句 <code>{html.escape(PROMPT.split(".")[0])}</code>，同样 {MAX_TOKENS} max_tokens，
-全部流式。时间为北京时间。「首字」是第一个正文字符，思考时长不计在内。</p>
-<table><thead><tr><th>模型 / 通道</th>{heads}</tr></thead><tbody>{''.join(rows)}</tbody></table>
+<h1>{html.escape(L["title"])}</h1>
+<p class="sub">{sub}</p>
+<p class="rule">{L["rule"]}</p>
+<div class="scroll">
+<table><thead><tr><th>{html.escape(L["head_lane"])}</th>{heads}</tr></thead>
+<tbody>{''.join(rows)}</tbody></table>
+</div>
 """, encoding="utf-8")
+    return True
 
 
 if __name__ == "__main__":
     ARGS = apply_cli(sys.argv[1:])
     OPEN_AFTER = "--open" in ARGS
     ANON = "--anonymize" in ARGS
-    RUNS.mkdir(parents=True, exist_ok=True)
 
     def show():
         board = ROOT / "index.html"
@@ -453,13 +715,22 @@ if __name__ == "__main__":
                     break
 
     if "render" in ARGS:
-        render()
+        if not render():
+            # 以前这里打印一个并不存在的 index.html 路径、还 exit 0，等于骗人
+            sys.exit(f"{RUNS} 下还没有快照，render 无图可用。\n"
+                     f"No snapshot under {RUNS} — nothing to render.\n"
+                     f"先不带 render 跑一轮（会调 API）/ run one round first (costs API calls):\n"
+                     f"  {Path(sys.argv[0]).name}")
         show()
         sys.exit()
     if not ENV_FILE.is_file():
         sys.exit(f"没有泳道配置 {ENV_FILE}\n"
+                 f"No lanes config at {ENV_FILE}\n"
                  f"照着 lanes.env.example 建一份，权限设 600（里面是密钥）。\n"
-                 f"只想用已有快照重出看板的话加 render。")
+                 f"Copy lanes.env.example there and chmod 600 it (it holds API keys).\n"
+                 f"只想用已有快照重出看板的话加 render / add `render` to rebuild from snapshots.")
+    # 目录副作用留在校验之后：一条跑不起来的命令不该在磁盘上留下空目录
+    RUNS.mkdir(parents=True, exist_ok=True)
     # 上一轮没跑完就别叠上来
     try:
         fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
