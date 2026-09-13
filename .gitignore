@@ -1,0 +1,14 @@
+# 泳道配置里是明文密钥，永远不进版本库
+lanes.env
+*.env
+!lanes.env.example
+
+# 运行产物
+runs/
+index.html
+run.lock
+*.svg
+
+__pycache__/
+*.pyc
+.DS_Store
