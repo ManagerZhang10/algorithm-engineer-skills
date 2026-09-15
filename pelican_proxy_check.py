@@ -9,17 +9,17 @@
 思考段一律丢掉，只留正文里的 <svg>。凭证只从配置文件读，任何输出里都不写 key。
 
 用法 / Usage:
-    pelican_proxy_check.py                 跑一轮并刷新看板 / run one round, refresh the board
-    pelican_proxy_check.py render          只用已有快照重出看板 / rebuild from snapshots, no API spend
-    pelican_proxy_check.py --open          跑完顺手打开看板 / open the board when done
-    pelican_proxy_check.py --config PATH   泳道配置路径 / lanes config
-                                           (默认 default: ~/.config/pelican-proxy-check/lanes.env)
-    pelican_proxy_check.py --out DIR       快照与看板目录 / snapshot + board dir
-                                           (默认 default: ~/.local/share/pelican-proxy-check)
-    pelican_proxy_check.py --keep N        保留最近 N 轮 / keep the last N rounds (默认 default: 3)
-    pelican_proxy_check.py --anonymize     通道名抹成「中转 A/B」，便于外发 / anonymise channel names
-    pelican_proxy_check.py --lang en       看板语言 / board language: zh (默认 default) | en
-    pelican_proxy_check.py --help          打印本帮助 / print this help
+    pelican_eval.py proxy-check                 跑一轮并刷新看板 / run one round, refresh the board
+    pelican_eval.py proxy-check render          只用已有快照重出看板 / rebuild from snapshots, no API spend
+    pelican_eval.py proxy-check --open          跑完顺手打开看板 / open the board when done
+    pelican_eval.py proxy-check --config PATH   泳道配置路径 / lanes config
+                                           (默认 default: ~/.config/pelican-bicycle-eval/lanes.env)
+    pelican_eval.py proxy-check --out DIR       快照与看板目录 / snapshot + board dir
+                                           (默认 default: ~/.local/share/pelican-bicycle-eval/proxy-check)
+    pelican_eval.py proxy-check --keep N        保留最近 N 轮 / keep the last N rounds (默认 default: 3)
+    pelican_eval.py proxy-check --anonymize     通道名抹成「中转 A/B」，便于外发 / anonymise channel names
+    pelican_eval.py proxy-check --lang en       看板语言 / board language: zh (默认 default) | en
+    pelican_eval.py proxy-check --help          打印本帮助 / print this help
 
 入 token 的差值只在**同一个 model** 的泳道之间算（基线由 PB_<名>_BASELINE=true 指定，
 未指定时回退到 channel 名里带「直连」/ direct 的那条）。跨 model 不比：各家分词器不同。
@@ -42,8 +42,12 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-ENV_FILE = Path.home() / ".config/pelican-proxy-check/lanes.env"
-ROOT = Path.home() / ".local/share/pelican-proxy-check"
+NEW_ENV_FILE = Path.home() / ".config/pelican-bicycle-eval/lanes.env"
+LEGACY_ENV_FILE = Path.home() / ".config/pelican-proxy-check/lanes.env"
+ENV_FILE = NEW_ENV_FILE if NEW_ENV_FILE.exists() or not LEGACY_ENV_FILE.exists() else LEGACY_ENV_FILE
+NEW_ROOT = Path.home() / ".local/share/pelican-bicycle-eval/proxy-check"
+LEGACY_ROOT = Path.home() / ".local/share/pelican-proxy-check"
+ROOT = NEW_ROOT if NEW_ROOT.exists() or not LEGACY_ROOT.exists() else LEGACY_ROOT
 RUNS = ROOT / "runs"
 LOCK = ROOT / "run.lock"
 KEEP = 3
@@ -71,8 +75,8 @@ def need_value(flag, rest):
     if not rest:
         sys.exit(f"{flag} 后面要跟一个值 / {flag} needs a value\n"
                  f"例如 / e.g.: {flag} "
-                 + {"--config": "~/.config/pelican-proxy-check/lanes.env",
-                    "--out": "~/.local/share/pelican-proxy-check",
+                 + {"--config": "~/.config/pelican-bicycle-eval/lanes.env",
+                    "--out": "~/.local/share/pelican-bicycle-eval/proxy-check",
                     "--keep": "3", "--lang": "en"}[flag])
     return rest.pop(0)
 

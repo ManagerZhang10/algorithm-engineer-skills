@@ -1,4 +1,4 @@
-# pelican-proxy-check
+# pelican-bicycle-eval
 
 > 本 Repo 的共享主规则。顶层 `/Users/yuzhang/ZhangYu/AGENTS.md` 的约定继续适用。
 
@@ -10,7 +10,7 @@
    一个都不进这个仓库——包括 README、示例、截图、commit message、issue 模板。
    `lanes.env.example` 里只放 `<你的 key>` 占位符或 `${VAR}` 引用。
 2. **截图必须脱敏。** `assets/board.png` 及任何新增截图，都要用
-   `python3 pelican_proxy_check.py render --anonymize` 出图后再截，通道名显示为
+   `python3 pelican_eval.py proxy-check render --anonymize` 出图后再截，通道名显示为
    「中转 A / 中转 B」。官方直连的名字可以留。
 3. **提交身份用个人 noreply**（见顶层第九节），公司邮箱绝不进这里的历史。
 
@@ -22,10 +22,16 @@ README 和 `docs/raw-data.md` 里的每个数字都是实测出来的，标着�
 
 ## 零依赖是硬约束
 
-`pelican_proxy_check.py` 只用 Python 标准库。这是这个工具「一分钟能跑起来」的全部理由，
+所有 Python 入口只用标准库。这是这个工具「一分钟能跑起来」的全部理由，
 不要为了省事引入 requests / httpx / rich。
 
-## 边界
+## 产品边界
 
-只判**通道完整性**（请求在路上被改了什么），不判**模型身份**（端点背后到底是哪个模型）。
-README 里不要出现越过这条边界的断言。
+这是一个可重复、可检查的 SVG 模型测评工具，覆盖两种用途：
+
+1. 横评模型、推理档位、重复稳定性和消耗；
+2. 用同模型的官方直连基线检查 API 通道完整性。
+
+不要把单道鹈鹕题说成通用智力分数，也不要仅凭图判断端点背后的模型身份。proxy-check 模式只判
+**通道完整性**（请求在路上被改了什么）；任何能力比较都要保留实际模型、档位、题面、重复次数和
+token 口径，避免把不等价配置包装成排行榜。

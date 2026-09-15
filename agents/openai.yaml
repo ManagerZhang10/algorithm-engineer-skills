@@ -1,7 +1,7 @@
 interface:
-  display_name: "鹈鹕查中转"
-  short_description: "同题画鹈鹕横评多条模型通道，并量出 input token 注入与思考抑制"
-  default_prompt: "使用 $pelican-proxy-check 跑一轮，把各通道的入 token 差和思考 token 列出来。"
+  display_name: "Pelican Bicycle Eval · 鹈鹕测评"
+  short_description: "重复横评模型 SVG、稳定性和消耗，也可检查中转完整性"
+  default_prompt: "使用 $pelican-bicycle-eval 让两个模型各画三次鹈鹕骑自行车，并生成带 token 消耗的横评页。"
 
 policy:
   allow_implicit_invocation: true

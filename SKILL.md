@@ -1,40 +1,63 @@
 ---
-name: pelican-proxy-check
-description: "让若干条「模型 x 通道」画同一张「鹈鹕骑自行车」SVG 并出并排看板，并从这同一发的响应里量出每条通道的 input token 注入、思考 token 抑制和响应元数据指纹。适用于怀疑 API 中转层降级、偷塞隐藏 system prompt 或关掉思考，也适用于单纯横评几家模型在同一道题上的出图能力；只判定通道完整性，不负责判定端点背后到底是哪个模型（那是行为指纹类工具的事）。"
+name: pelican-bicycle-eval
+description: "重复运行并展示「鹈鹕骑自行车」SVG 测评，对比模型、推理档位、稳定性、token 与折算消耗；也可用官方直连基线检查 API 中转的 input token 注入、思考抑制和响应元数据。适用于用户要画鹈鹕横评、比较模型 SVG 能力或诊断中转通道；不把单题结果当成通用智力排名。"
 ---
 
-# 鹈鹕查中转（pelican-proxy-check）
+# Pelican Bicycle Eval · 鹈鹕测评
 
-「生成一张鹈鹕骑自行车的 SVG」是 Simon Willison 2024 年起的一个非正式基准：场景在训练数据里
-几乎不存在，模型只能真的去算几何，不能靠背。本技能把它从「看个乐」变成可用的诊断：
+「生成一张鹈鹕骑自行车的 SVG」是 Simon Willison 2024 年起推广的非正式基准。本技能把它做成
+可重复、可检查的轻量测评：
 
 - **图**是感官参照 —— 同一道题，各家画成什么样，一眼可比。
-- **同一发的响应元数据**才是实锤 —— 每条泳道每轮只打这一发，判读全部来自它：服务端自己报
-  回来的 `prompt_tokens`、`reasoning_tokens`、响应 id、`usage` 字段。这些是数字，不是观感。
-  题面逐字不变，所以 input token 就有了尺子；题面够难，所以思考 token 的抑制看得出来。
+- **重复与用量**补足单张图 —— 记录实际模型、推理档位、首次响应、失败样本、token 和明确的折算口径。
+- **中转模式的响应元数据**才是通道证据 —— `prompt_tokens`、`reasoning_tokens`、响应 id 和
+  `usage` 字段都来自同一发请求，不从画面猜中转有没有动手脚。
 
 ## 什么时候用
 
-- 用了 API 中转 / 网关 / 转售商，怀疑拿到的不是宣称的东西
-- 换了供应商，想在投产前验一验行为有没有变
-- 想横评几家模型在同一道题上的表现
+- 想横评模型或推理档位的 SVG 构图、代码生成和重复稳定性
+- 已有若干 SVG，想生成可放大、可下载、带 token 折算的自包含网页
+- 用了 API 中转 / 网关 / 转售商，怀疑被注入隐藏上下文或关掉思考
+- 换了供应商，想在投产前验一验通道行为有没有变
 
-**不适用**：判定「这个端点背后到底是哪个模型」。那是模型身份问题，行为指纹类工具（单 token
-答案分布 + Jensen-Shannon 散度）更合适。本技能量的是**通道完整性**——请求在路上被改了什么。
-两者互补：指纹工具的已知弱点是「只换 system prompt 造成的散度漂移，跟换模型一个量级」，
-分不清是哪种；而本技能正好能把注入量直接读成一个 token 数。
+**不适用**：把一张或一道鹈鹕题当成通用智力分数，或判定端点背后到底是哪款模型。经典单题已被
+广泛传播且在前沿模型上趋于饱和；它适合做直观冒烟测试和重复性对照。模型身份要用行为指纹等
+专门方法；proxy-check 模式量的是**通道完整性**——请求在路上被改了什么。
 
-## 装与跑
+## 先选模式
+
+### 模型 / 推理档位横评
+
+1. 冻结逐字相同的题面，对每个配置做独立采样；看稳定性时至少三次。
+2. 保留首次响应和失败结果，不修图，不挑最好看的一张冒充单次结果。
+3. 记录准确的模型、推理档位、通道和 token；估算值明确标 `tokens_exact: false`。
+4. 套餐折算只使用用户指定或可引用的当前官方口径，把倍率写进 manifest，不硬编码进页面。
+5. 按 [通用看板 schema](docs/gallery.md) 写 manifest，再运行：
+
+```bash
+python3 pelican_eval.py render /path/to/manifest.json --out /path/to/board.html --open
+```
+
+若用户已经给了 SVG 或结果，只做整理与渲染，不重新调用模型。若用户明确说不用代理/中转，
+不要调用 proxy-check 模式。
+
+### API 通道完整性检查
+
+同一个模型至少要有「官方直连 + 待验通道」两条泳道，而且思考档位逐字相同。下面的配置、判读和
+采样规则只适用于这个模式。
+
+## 运行 proxy-check 模式
 
 只用 Python 标准库，不装依赖。
 
 ```bash
-cp lanes.env.example ~/.config/pelican-proxy-check/lanes.env
-chmod 600 ~/.config/pelican-proxy-check/lanes.env   # 里面是密钥
-$EDITOR ~/.config/pelican-proxy-check/lanes.env     # 填端点、密钥、模型
+mkdir -p ~/.config/pelican-bicycle-eval
+cp lanes.env.example ~/.config/pelican-bicycle-eval/lanes.env
+chmod 600 ~/.config/pelican-bicycle-eval/lanes.env   # 里面是密钥
+$EDITOR ~/.config/pelican-bicycle-eval/lanes.env     # 填端点、密钥、模型
 
-python3 pelican_proxy_check.py --open       # 跑一轮并打开看板
-python3 pelican_proxy_check.py render       # 只用已有快照重出看板
+python3 pelican_eval.py proxy-check --open       # 跑一轮并打开看板
+python3 pelican_eval.py proxy-check render       # 只用已有快照重出看板
 ```
 
 可选参数：`--config PATH`（泳道配置）、`--out DIR`（快照与看板目录）、`--keep N`（保留最近 N 轮）、

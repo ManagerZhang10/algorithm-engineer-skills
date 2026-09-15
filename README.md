@@ -1,16 +1,44 @@
-# pelican-proxy-check
+# Pelican Bicycle Eval
 
-**Is your API proxy quietly degrading the model you paid for?** Make every lane draw
-the same pelican on a bicycle, then read what the server reports about itself.
+**Repeatable, inspectable SVG trials for models, reasoning levels, usage, and API
+channels.** Give every configuration the same pelican-on-a-bicycle prompt, preserve
+the first responses, and compare the drawings plus the evidence around them.
 
 > [中文说明](README.zh-CN.md)
 
 ![dashboard](assets/board.png)
 
-Two lanes, one model, one prompt. Left: through a reseller. Right: straight to the
-vendor. The pictures are the hook — the numbers underneath them are the evidence.
+The screenshot shows the proxy-check mode: one model and two channels. The general
+gallery also compares different models and effort levels, with any number of
+independent samples.
 
-## The problem
+| Mode | Use it for | Entry point |
+|---|---|---|
+| Model / effort comparison | Visual quality, SVG validity, repeatability, latency, raw and weighted usage | `pelican_eval.py render` |
+| Proxy integrity check | Hidden input injection, reasoning suppression, response metadata drift | `pelican_eval.py proxy-check` |
+
+## Model and effort comparison
+
+The neutral renderer accepts SVGs produced by Codex, another harness, or a manual
+run. It makes no API calls:
+
+```bash
+python3 pelican_eval.py render /path/to/manifest.json --out /path/to/board.html --open
+```
+
+The manifest can contain any number of models and attempts, plus optional effort,
+channel, latency, raw token usage, and a caller-supplied plan multiplier. Matching
+samples become one lane; every drawing is embedded into a portable HTML file with
+zoom and download controls. See [`docs/gallery.md`](docs/gallery.md) for the schema.
+
+Run at least three independent attempts when judging stability, preserve failed
+first responses, and label unequal reasoning settings explicitly. This is a useful
+probe of spatial composition, SVG coding, instruction following, and output
+stability — not a general-intelligence score. The canonical single prompt is now
+saturated on many frontier models, so harder studies should vary animals, vehicles,
+and constraints instead of reading too much into one pretty pelican.
+
+## Proxy integrity mode
 
 When you buy API access through a proxy, gateway, or reseller, you can't see what
 actually reaches the vendor. Four things commonly happen to your request:
@@ -54,7 +82,7 @@ board falls back to the lane whose channel name contains `direct` / 「直连」
 > measures the tokenizer, not the proxy. A model with only one lane, or no
 > identifiable baseline, simply shows no delta — the tool does not guess.
 
-## Getting to a dashboard
+## Running the proxy check
 
 No dependencies. Python standard library only. Budget **15–25 minutes** the first
 time — most of it is collecting keys and base URLs for the lanes you want to
@@ -62,15 +90,15 @@ compare. A round itself takes one to two minutes (57 s and 113 s measured on
 four-lane runs, 2026-09-13); reasoning models spend most of it thinking.
 
 ```bash
-git clone https://github.com/ManagerZhang10/pelican-proxy-check
-cd pelican-proxy-check
+git clone https://github.com/ManagerZhang10/pelican-bicycle-eval
+cd pelican-bicycle-eval
 
-mkdir -p ~/.config/pelican-proxy-check
-cp lanes.env.example ~/.config/pelican-proxy-check/lanes.env
-chmod 600 ~/.config/pelican-proxy-check/lanes.env   # it holds API keys
-$EDITOR ~/.config/pelican-proxy-check/lanes.env
+mkdir -p ~/.config/pelican-bicycle-eval
+cp lanes.env.example ~/.config/pelican-bicycle-eval/lanes.env
+chmod 600 ~/.config/pelican-bicycle-eval/lanes.env   # it holds API keys
+$EDITOR ~/.config/pelican-bicycle-eval/lanes.env
 
-python3 pelican_proxy_check.py --open
+python3 pelican_eval.py proxy-check --open
 ```
 
 The last command runs every lane concurrently, writes one self-contained HTML file
@@ -92,7 +120,7 @@ Put it on a timer and it becomes continuous monitoring — the script takes a lo
 so a slow round never stacks on the next one.
 
 ```bash
-python3 pelican_proxy_check.py render --open   # rebuild the board from existing snapshots, no API spend
+python3 pelican_eval.py proxy-check render --open   # rebuild from snapshots, no API spend
 ```
 
 ### Options
@@ -100,8 +128,8 @@ python3 pelican_proxy_check.py render --open   # rebuild the board from existing
 | Flag | Default | What it does |
 |---|---|---|
 | `render` | — | Rebuild the board from existing snapshots, no API calls |
-| `--config PATH` | `~/.config/pelican-proxy-check/lanes.env` | Lane config to read (must be `chmod 600`) |
-| `--out DIR` | `~/.local/share/pelican-proxy-check` | Where snapshots and `index.html` go |
+| `--config PATH` | `~/.config/pelican-bicycle-eval/lanes.env` | Lane config to read (must be `chmod 600`) |
+| `--out DIR` | `~/.local/share/pelican-bicycle-eval/proxy-check` | Where snapshots and `index.html` go |
 | `--keep N` | `3` | How many recent rounds to keep and show |
 | `--lang zh\|en` | `zh` | Board language |
 | `--anonymize` | off | Collapse channel names to "Proxy A / Proxy B" |
@@ -111,7 +139,7 @@ python3 pelican_proxy_check.py render --open   # rebuild the board from existing
 Two configs side by side is just two `--config` / `--out` pairs:
 
 ```bash
-python3 pelican_proxy_check.py --config ~/lanes-work.env --out ~/boards/work --keep 10
+python3 pelican_eval.py proxy-check --config ~/lanes-work.env --out ~/boards/work --keep 10
 ```
 
 An unknown flag is a hard error with a suggestion, never a silent no-op — a typo
@@ -119,15 +147,19 @@ in `--anonymize` must not quietly publish a reseller's real name.
 
 ## Why a pelican
 
-"Generate an SVG of a pelican riding a bicycle" is Simon Willison's informal
-benchmark, running since 2024. The scene is essentially absent from training data,
-so a model has to actually work out the geometry — body proportions, frame
-structure, where the legs meet the pedals — rather than recite something. One
-prompt exercises spatial reasoning, structural planning, and long-output stability
-at once, and anyone can see a bad result without reading a score.
+"Generate an SVG of a pelican riding a bicycle" is
+[Simon Willison's informal benchmark](https://github.com/simonw/pelican-bicycle),
+running since 2024. It packs awkward geometry — body proportions, frame structure,
+and where legs meet pedals — into one short, human-readable prompt. That makes it a
+useful visual smoke test for spatial reasoning, structural planning, SVG coding,
+and long-output stability.
 
 The prompt is fixed verbatim so that input tokens are a stable ruler across lanes,
-and so results stay comparable with the public corpus of pelican SVGs.
+and so results stay comparable with the public corpus of pelican SVGs. It is no
+longer a fresh or comprehensive benchmark: Hugging Face's
+[scaled OpenEnv version](https://github.com/huggingface/openenv/blob/main/docs/source/environments/pelican_svg.md)
+reports a saturated canonical task and explicitly avoids treating it as a model
+ranking.
 
 **But a picture alone proves nothing.** Temperature is non-zero and variance is
 high. The drawing is the sensory reference; the table above is the verdict.
@@ -135,7 +167,7 @@ high. The drawing is the sensory reference; the table above is the verdict.
 ## Sharing results
 
 ```bash
-python3 pelican_proxy_check.py render --anonymize --lang en
+python3 pelican_eval.py proxy-check render --anonymize --lang en
 ```
 
 Channel names collapse to "Proxy A / Proxy B"; direct-to-vendor lanes keep their
@@ -144,9 +176,10 @@ names. The screenshot at the top of this README was produced that way —
 
 ## Scope
 
-This measures **channel integrity** — what happened to your request in transit. It
-does **not** identify **model identity** — which model actually sits behind the
-endpoint. That's what behavioral fingerprinting is for; the two are complementary.
+The gallery compares observable output, repeatability, and recorded usage for the
+configurations you name. It does not prove a model's general intelligence or the
+identity behind an endpoint. Proxy-check mode measures **channel integrity** — what
+happened to a request in transit — and does not perform model fingerprinting.
 
 A single anomalous round may just be jitter. Telling *constant* injection from
 *intermittent* injection takes at least three rounds — and that distinction is the
