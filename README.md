@@ -16,17 +16,23 @@
 | 2 | [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md) | 按讲述时长冻结正文预算，先串文字主线再用图压缩表达 | 架构规划、技术规划、方案汇报、路线提案 | [交付物模式](skills/architecture-plan-authoring/references/deliverable-modes.md)、[审查量表](skills/architecture-plan-authoring/references/review-rubric.md) |
 | 3 | [internship-reporting](skills/internship-reporting/SKILL.md) | 按五层框架将已有材料组织为实习 / 转正汇报 | 实习总结、转正汇报、晋升材料、45 分钟汇报模板 | [五层框架](skills/internship-reporting/references/five-level-reporting.md)、[45 分钟模板](skills/internship-reporting/references/45-minute-internship-report-template.md) |
 
+### 讲解幻灯片
+
+| # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
+| --- | --- | --- | --- | --- |
+| 4 | [kelip-slide](skills/kelip-slide/SKILL.md) | 用单文件 HTML 做 keynote 风讲解 deck：15 种页型模板、自绘 SVG 箭头自动连线与穿块检查、代码解读页（左代码色块 + 右同色注释卡）、渲染自查 | 做 / 改 HTML deck、slides、讲解 PPT、录屏分享页 | [自绘 SVG](skills/kelip-slide/references/svg.md)、[素材处理](skills/kelip-slide/references/media.md)、[改造](skills/kelip-slide/references/customize.md)、[来源](skills/kelip-slide/UPSTREAM.md) |
+
 ### 内容提取
 
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
-| 4 | [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | 将公开小红书笔记、长图或截图转成带来源边界的可编辑 Markdown | 给出小红书链接、长图或截图，要求提取原文、OCR 或转写 | — |
+| 5 | [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | 将公开小红书笔记、长图或截图转成带来源边界的可编辑 Markdown | 给出小红书链接、长图或截图，要求提取原文、OCR 或转写 | — |
 
 ### 工程诊断
 
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
-| 5 | [pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check) ↗ | 让多条「模型 x 通道」画同一张鹈鹕骑自行车 SVG 并出并排看板，同时量出 input token 注入与思考 token 抑制 | 怀疑 API 中转层降级、偷塞隐藏 system prompt 或关掉思考；横评几家模型的出图能力 | **住在独立仓库**，装法见该仓库 README |
+| 6 | [pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check) ↗ | 让多条「模型 x 通道」画同一张鹈鹕骑自行车 SVG 并出并排看板，同时量出 input token 注入与思考 token 抑制 | 怀疑 API 中转层降级、偷塞隐藏 system prompt 或关掉思考；横评几家模型的出图能力 | **住在独立仓库**，装法见该仓库 README |
 
 ### 思考
 
@@ -109,6 +115,9 @@ ln -s "$PWD/skills/decision-stress-testing" ~/.claude/skills/
 - 五个思考技能改编自一篇公开发表的公众号文章里的 12 个提示词，**不是本人原创方法**。
   每个技能目录下的 `UPSTREAM.md` 写明了出处、取得日期、本地改了什么，
   以及上游许可证状态（原文未声明授权条款，状态为不确定）。使用前请先读该文件。
+- `kelip-slide` 派生自 [skJack/kelip-slide](https://github.com/skJack/kelip-slide)（MIT，上游 `LICENSE` 原样保留在该目录）。
+  本地加了箭头自动连线与穿块检查（已提回上游 PR #1）、去掉收尾页、点击不翻页，
+  以及「代码解读页」页型；逐条改动见该目录 `UPSTREAM.md`。
 - `pelican-proxy-check` 由本人编写，**已拆成独立仓库**
   [ManagerZhang10/pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check)，
   这里不再保留副本（一份代码两个地方维护迟早不同步）。所用题面
