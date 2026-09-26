@@ -40,25 +40,22 @@ base64，否则离线打开会掉回系统字体。
 竖屏（1080×1920，手机端分享）同理，但 `.fig2` 两图并排、`.stats` 三列这些横向布局
 要改成单列。
 
-## 把页脚小字 / 底部注释行加回来
+## 右下角出处小字
 
-模板默认不放，因为一页只留小标 + 标题 + 图最干净。要的话把这两段加进 `<style>`：
+底部讲稿块 `.talk` 模板已经内置（每个内容页必填，见 `SKILL.md`），不用再加。
+想另外要一行右下角出处小字，把这段加进 `<style>`：
 
 ```css
-/* 底部一句注释 */
-.note{margin-top:30px;font-size:29px;color:var(--muted);text-align:center;line-height:1.45}
-.note b{color:var(--ink);font-weight:600}
 /* 右下角出处小字 */
 .src{position:absolute;right:128px;bottom:40px;font-family:var(--mono);
      font-size:17px;color:var(--faint);letter-spacing:.06em}
 ```
 
 ```html
-<div class="note">一句话把这页的结论说完，<b>加粗关键词</b></div>
 <div class="src">Fig.6 · Sec.IV-A · 估读</div>
 ```
 
-加了 `.note` 的话，`.slide` 的下 padding 要从 96px 收到 84px，不然图会被挤矮。
+不想要讲稿块（比如确实要录屏）就把每页的 `.talk` 删掉，CSS 留着无害。
 
 ## 常驻页码
 

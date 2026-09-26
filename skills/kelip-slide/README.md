@@ -3,7 +3,8 @@
 > 派生自 [skJack/kelip-slide](https://github.com/skJack/kelip-slide)（MIT），本地改动见 [UPSTREAM.md](UPSTREAM.md)。
 
 用**单个 HTML 文件**做讲解幻灯片：1920×1080，浅灰底 + 黑字 + 一个强调色，一页一张大图，
-文字少、页不排满。Chrome 双击就能放，方向键翻页，断网可用，适合录屏讲解和技术分享。
+文字少、页不排满。Chrome 双击就能放，方向键翻页，断网可用。每页带一行「看哪里」和一块讲稿，
+**发给别人自己看也能懂**，不依赖录屏或现场讲解。
 
 **一套模板 + 一份写给 AI Agent 看的规范。** 给你的 agent（Claude Code、Cursor、Codex、
 Copilot、任何能读文件改文件的）指一下这个目录，说「做一个讲 X 的 deck」，它就按这套版式搭；

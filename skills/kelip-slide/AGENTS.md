@@ -10,8 +10,9 @@ Chrome 打开键盘翻页。
 3. **排完必须跑 `assets/render_preview.py` 把每页渲染成图，自己看一遍再交付**——
    版式问题（图顶边、白卡空一半、表格挤成一团）只有看图才发现得了。
    有自绘 SVG 的再跑 `assets/check_arrows.py deck.html`，✗ 全部改掉。
-4. **讲代码的页一律用「代码解读页」**（`.cx`：左代码色块、右同色注释卡、上下顺序对齐），规则在 `SKILL.md`。
-5. 需要自绘机制图看 `references/svg.md`，处理素材看 `references/media.md`，
+4. **图页 `.sub` 必填，每个内容页末尾必有 `.talk` 讲稿块**——deck 是发出去看的，没人讲解，规则在 `SKILL.md`。
+5. **讲代码的页一律用「代码解读页」**（`.cx`：左代码色块、右同色注释卡、上下顺序对齐），规则在 `SKILL.md`。
+6. 需要自绘机制图看 `references/svg.md`，处理素材看 `references/media.md`，
    改配色 / 画幅 / 加回页脚小字看 `references/customize.md`。
 
 `SKILL.md` 里标了「建议」的内容规则是默认值，项目自己的风格约定优先。

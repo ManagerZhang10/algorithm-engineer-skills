@@ -23,6 +23,10 @@ h1{font-size:68px;font-weight:600;letter-spacing:-.012em;line-height:1.15;margin
 h1 .thin{font-weight:400;color:var(--muted)}
 h1 .acc{color:var(--accent)}
 .sub{font-size:30px;color:var(--muted);margin-top:14px;font-weight:400;line-height:1.4}
+/* 讲稿块：主体下方 2–4 句，把本来要口头讲的话写在页上；deck 是直接发出去看的，不录屏 */
+.talk{margin-top:26px;padding:18px 26px;border-left:4px solid var(--line);font-size:24px;color:var(--muted);line-height:1.5;flex:none}
+.talk b{color:var(--ink);font-weight:600}
+.talk .acc{color:var(--accent);font-weight:600}
 /* 图 / 视频 */
 .fig{flex:1;min-height:0;position:relative;margin-top:44px}
 .fig img,.fig video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
@@ -254,17 +258,21 @@ svg[data-anim] [data-a].on{opacity:1}
 <section class="slide" data-sec="01 段名" data-title="这页的结论">
   <div class="kicker"><b>01</b>段名 · 论文图 2 · 出处和口径写在这里</div>
   <h1>标题写结论，<span class="thin">不写「实验结果」这种栏目名</span></h1>
+  <div class="sub">图页必填：这张图看哪里——横轴是什么、哪条线是本文、哪个位置能看出标题说的结论</div>
   <div class="fig card"><img src="media/fig_xx.png" alt=""></div>
+  <div class="talk">讲稿写在这里，2–4 句：这张图<b>为什么重要</b>、和上一页的关系、读者容易看错的地方。读者不听讲解也能懂这页，就是这块的验收标准。</div>
 </section>
 
 <!-- ===== 5 两图并排：同一件事的两面（前/后、仿真/真机） ===== -->
 <section class="slide" data-sec="01 段名" data-title="两图对照">
   <div class="kicker"><b>01</b>段名 · 论文图 3 + 图 4</div>
   <h1>左边是<span class="acc">想象</span>，右边是<span class="thin">实际执行</span></h1>
+  <div class="sub">左：模型生成的轨迹；右：真机回放。看两者在第 3 步之后的分叉</div>
   <div class="fig2">
     <div class="fig card"><img src="media/fig_a.png" alt=""></div>
     <div class="fig card"><img src="media/fig_b.png" alt=""></div>
   </div>
+  <div class="talk">两图并排是为了对照，讲稿就说<b>差在哪、为什么差</b>；两张图各自是什么已经在 sub 里说了，别重复。</div>
 </section>
 
 <!-- ===== 6 自绘 SVG：论文图讲不清机制时自己画。viewBox 宽 1600、字号≈屏幕像素 ===== -->
@@ -287,6 +295,7 @@ svg[data-anim] [data-a].on{opacity:1}
     <line x1="60" y1="380" x2="1540" y2="380" stroke="#E5E5EA" stroke-width="1.5"/>
     <text x="60" y="430" font-size="20" fill="#6E6E73">分隔线用 #E5E5EA·灰框 #F5F5F7·蓝框 #E8F0FE + #0071E3 边·虚线框 = 不确定 / 外挂</text>
   </svg></div>
+  <div class="talk">自绘图的讲稿说<b>箭头走向的含义</b>和最关键的那一格；图上没标的数字放这里。</div>
 </section>
 
 <!-- ===== 7 表：数字对照。tbl left wrap = 文字表；tbl num two = 数字 + 小字 ===== -->
@@ -298,6 +307,7 @@ svg[data-anim] [data-a].on{opacity:1}
     <tr><td>客服</td><td class="acc"><b>76.0%</b><br><small>$0.0001 · 0.4 s</small></td><td><b>72.7%</b><br><small>$0.0111 · 6.0 s</small></td><td><b>78.3%</b><br><small>$0.0323 · 10.1 s</small></td></tr>
     <tr><td>发票</td><td class="acc"><b>61.8%</b><br><small>$0.0011 · 0.5 s</small></td><td><b>74.7%</b><br><small>$0.0778 · 17.3 s</small></td><td><b>79.1%</b><br><small>$0.2152 · 34.3 s</small></td></tr>
   </table></div>
+  <div class="talk">表的讲稿只说<b>该看哪一行哪一列</b>，以及这个差距意味着什么；不要把表复述一遍。</div>
 </section>
 
 <!-- ===== 8 数字卡：一页放 4–6 个事实。.stat.text 放的是短语不是数字 ===== -->
@@ -309,6 +319,7 @@ svg[data-anim] [data-a].on{opacity:1}
     <div class="stat"><div class="n">64k<small>/ 32k</small></div><div class="l">整请求 / 单分支上限</div></div>
     <div class="stat text"><div class="n">因果 decoder<span class="acc">，大概率 MoE</span></div><div class="l">前缀 KV cache 只在因果注意力下成立</div></div>
   </div>
+  <div class="talk">数字卡的讲稿把几个数<b>串成一句话</b>：它们合起来说明什么。</div>
 </section>
 
 <!-- ===== 9 原话卡：引用官方 / 作者原话，出处放 .src 小字（卡内，不是页脚） ===== -->
@@ -350,6 +361,7 @@ svg[data-anim] [data-a].on{opacity:1}
   <div class="kicker"><b>07</b>演示 · 官方 demo · 原速</div>
   <h1>它实际跑起来是这样</h1>
   <div class="fig card"><video muted loop playsinline preload="auto" src="media/demo.mp4"></video></div>
+  <div class="talk">视频页的讲稿说<b>看第几秒、看哪个动作</b>，以及它证明了什么。</div>
 </section>
 
 <!-- ===== 13 满屏播片页：整段官方演示片，带 controls ===== -->
@@ -403,6 +415,7 @@ svg[data-anim] [data-a].on{opacity:1}
       <div class="note p"><div class="h">紫：第四段在做什么</div><div class="d">回到哪里去，接下一页的哪一段。</div></div>
     </div>
   </div>
+  <div class="talk">代码解读页的讲稿说这段代码<b>在整个前向里的位置</b>，以及下一页接哪一段；逐段解释已经在右侧卡里。</div>
 </section>
 
 </div>
