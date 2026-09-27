@@ -269,6 +269,45 @@ def detect_silence(mic, noise_db, min_dur, pad):
     return segs
 
 
+def snap_silence_to_words(silence, words, pad, min_dur):
+    """静音删除区间不得与任何 whisper 词重叠：把每段静音减去所有词的 [start-pad, end+pad]，
+    剩下的碎片短于 min_dur 的丢弃。whisper 常把停顿算进相邻词的跨度，这样做会少删一些静音，
+    但保证不会切到词、字幕也不会跨接缝丢字。返回 (新区间列表, 被吸附/丢弃统计)。"""
+    spans = sorted((w["start"] - pad, w["end"] + pad) for w in words)
+    out, n_shrunk, n_dropped = [], 0, 0
+    j = 0
+    for a, b in silence:
+        pieces = [(a, b)]
+        # 只看可能重叠的词
+        while j > 0 and spans[j - 1][1] > a:
+            j -= 1
+        k = j
+        changed = False
+        while k < len(spans) and spans[k][0] < b:
+            ws, we = spans[k]
+            if we > a:
+                new = []
+                for pa, pb in pieces:
+                    if we <= pa or ws >= pb:
+                        new.append((pa, pb))
+                    else:
+                        changed = True
+                        if ws > pa:
+                            new.append((pa, ws))
+                        if we < pb:
+                            new.append((we, pb))
+                pieces = new
+            k += 1
+        kept = [(pa, pb) for pa, pb in pieces if pb - pa >= min_dur]
+        if changed:
+            if kept:
+                n_shrunk += 1
+            else:
+                n_dropped += 1
+        out.extend(kept)
+    return out, {"shrunk": n_shrunk, "dropped": n_dropped}
+
+
 # ---------------------------------------------------------------- 区间运算
 
 def merge_intervals(ivs):
@@ -332,8 +371,11 @@ def cmd_analyze(a):
     shutil.copy(a.words, os.path.join(a.out, "words.src.json"))
 
     # 1) 静音
-    silence = detect_silence(media["mic"], a.silence_db, a.silence_min, a.silence_pad)
-    log("静音段 %d 个，合计 %.1fs" % (len(silence), sum(b - s for s, b in silence)))
+    silence_raw = detect_silence(media["mic"], a.silence_db, a.silence_min, a.silence_pad)
+    raw_total = sum(b - s for s, b in silence_raw)
+    silence, snap = snap_silence_to_words(silence_raw, words, a.silence_pad, a.silence_min)
+    log("静音段 %d 个，合计 %.1fs；吸附词边界后 %d 个，合计 %.1fs（收缩 %d、丢弃 %d）" % (
+        len(silence_raw), raw_total, len(silence), sum(b - s for s, b in silence), snap["shrunk"], snap["dropped"]))
 
     # 2) 手工删除（文字锚点）
     anchors = Anchors(words)
@@ -412,6 +454,9 @@ def cmd_analyze(a):
                  len(manual), sum(m["end"] - m["start"] for m in manual)),
              "- 静音检测：阈值 %sdB、最短 %.2fs、两端各留 %.2fs；静音段不逐条列。" % (
                  a.silence_db, a.silence_min, a.silence_pad),
+             "- 静音删除区间已吸附到词边界：与任何 whisper 词（含 %.2fs 余量）重叠的部分不删，"
+             "剩余短于最短静音的整段放弃（本次原始检出 %d 段 %.1fs → 实际删 %d 段 %.1fs）。" % (
+                 a.silence_pad, len(silence_raw), raw_total, len(silence), sil_total),
              "", "## 手工删除", ""]
     if manual:
         for m in manual:
@@ -1135,13 +1180,13 @@ def cmd_render(a):
                 return o + (t - s)
         return bounds[-1][2] + (bounds[-1][1] - bounds[-1][0]) if bounds else 0.0
 
-    # 字幕行：只用保留的词，且时间落在保留段内
+    # 字幕行：只用未被手工删除的词；只要词的时间跨度与任一保留段有重叠就进字幕，
+    # 不因为一部分落在静音删除区间里就丢（whisper 常把停顿算进词的跨度）
     kept_words = []
     for w in edl["words"]:
         if w["deleted"]:
             continue
-        mid = (w["start"] + w["end"]) / 2
-        if any(s <= mid <= e for s, e, _ in bounds):
+        if any(w["start"] < e and w["end"] > s for s, e, _ in bounds):
             kept_words.append(w)
     lines = build_lines(kept_words, src2out, a.max_chars)
     log("字幕 %d 行" % len(lines))

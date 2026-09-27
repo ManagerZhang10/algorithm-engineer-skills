@@ -33,6 +33,7 @@ description: 剪 ScreenKite 录的讲解视频：去静音气口、按文字锚�
    lecture-cut analyze --bundle <x.skbundle> --words <whisper.json> --out <workdir> [--cuts cuts.json] [--term-fixes terms.json]
    ```
    产出 `<workdir>/review.md`（按句列全文、`mm:ss`、保留 / 删除标记，静音只汇总）和 `edl.json`（保留区间）。
+   静音删除区间会吸附到词边界（与任何 whisper 词重叠的部分不删），字幕里只要与保留区间有重叠的词都保留，所以接缝处不会丢字。
    **先把 review.md 给用户过目再渲**，一次删太多用户会不放心。
 3. 手工删除写 `cuts.json`，全部用文字锚点：
    ```json
