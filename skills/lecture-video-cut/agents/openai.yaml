@@ -1,0 +1,7 @@
+interface:
+  display_name: "Lecture Video Cut"
+  short_description: "ScreenKite 录屏的 ffmpeg 剪辑流水线：静音去气口、文字锚点删卡壳重说段、逐字高亮字幕、圆形摄像头、鼠标光标高亮；draft 草片 / final 正式片两档"
+  default_prompt: "使用 $lecture-video-cut 剪这个 skbundle：先 analyze 出 review.md 给我过目，确认后再 render。"
+
+policy:
+  allow_implicit_invocation: true
