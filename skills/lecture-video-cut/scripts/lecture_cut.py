@@ -150,6 +150,54 @@ def find_media(bundle):
     return {"screen": screen, "camera": camera, "mic": mic}
 
 
+# ---------------------------------------------------------------- 版本目录
+
+def safe_label(label):
+    """版本目录的说明部分：去掉路径分隔符和首尾空白，空格换成下划线。"""
+    label = re.sub(r"[\\/:*?\"<>|]+", "_", (label or "").strip())
+    return re.sub(r"\s+", "_", label) or "untitled"
+
+
+def next_version_dir(root, label):
+    """在 root 下建 vN_<label>/，N = 已有 vN… 目录的最大编号 + 1。"""
+    os.makedirs(root, exist_ok=True)
+    nums = []
+    for name in os.listdir(root):
+        m = re.match(r"^v(\d+)(?:_|$)", name)
+        if m and os.path.isdir(os.path.join(root, name)):
+            nums.append(int(m.group(1)))
+    n = (max(nums) + 1) if nums else 1
+    d = os.path.join(root, "v%d_%s" % (n, safe_label(label)))
+    os.makedirs(d)
+    return d
+
+
+def has_final_render(vdir):
+    """版本目录顶层已有成片（mp4/mov）就算「已出过正式片」，不再复用。"""
+    if not os.path.isdir(vdir):
+        return True
+    return any(f.lower().endswith((".mp4", ".mov")) for f in os.listdir(vdir))
+
+
+def copy_project_files(workdir, vdir):
+    """把当次 edl.json / cuts.json / term-fixes.json 的副本放进 <vdir>/剪辑工程/。"""
+    proj = os.path.join(vdir, "剪辑工程")
+    os.makedirs(proj, exist_ok=True)
+    copied = []
+    for name in ("edl.json", "cuts.json", "term-fixes.json"):
+        src = os.path.join(workdir, name)
+        if os.path.exists(src):
+            shutil.copy(src, os.path.join(proj, name))
+            copied.append(name)
+    return copied
+
+
+def copy_if_different(src, dst):
+    if os.path.exists(dst) and os.path.samefile(src, dst):
+        return
+    shutil.copy(src, dst)
+
+
 # ---------------------------------------------------------------- 词与术语
 
 def load_words(path):
@@ -369,6 +417,11 @@ def cmd_analyze(a):
     if n_fixed:
         log("术语修正 %d 处（%s）" % (n_fixed, "、".join("%s→%s" % kv for kv in fixes.items())))
     shutil.copy(a.words, os.path.join(a.out, "words.src.json"))
+    # 当次用到的 cuts / term-fixes 复制进 workdir，render 归档版本时从这里取
+    if a.cuts:
+        copy_if_different(a.cuts, os.path.join(a.out, "cuts.json"))
+    if a.term_fixes:
+        copy_if_different(a.term_fixes, os.path.join(a.out, "term-fixes.json"))
 
     # 1) 静音
     silence_raw = detect_silence(media["mic"], a.silence_db, a.silence_min, a.silence_pad)
@@ -436,12 +489,17 @@ def cmd_analyze(a):
         "durations": durs,
         "source_duration": total,
         "params": {"silence_db": a.silence_db, "silence_min": a.silence_min, "silence_pad": a.silence_pad},
+        "version_dir": None,
         "keep": [{"start": round(s, 4), "end": round(e, 4)} for s, e in keep],
         "cuts": cuts_out,
         "words": [{"start": w["start"], "end": w["end"], "text": w["text"],
                    "deleted": (word_status[i] is not None),
                    "reason": word_status[i] or ""} for i, w in enumerate(words)],
     }
+    vdir = None
+    if a.version_dir:
+        vdir = next_version_dir(a.version_dir, a.label or "draft")
+        edl["version_dir"] = os.path.abspath(vdir)
     json.dump(edl, open(os.path.join(a.out, "edl.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
 
@@ -482,6 +540,10 @@ def cmd_analyze(a):
         lines.append("- `%s` %s — %s" % (mmss_short(t0), mark, txt))
     open(os.path.join(a.out, "review.md"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
     log("写出 %s/edl.json 与 review.md；保留 %s / 原始 %s" % (a.out, mmss(kept_total), mmss(total)))
+    if vdir:
+        shutil.copy(os.path.join(a.out, "review.md"), os.path.join(vdir, "review.md"))
+        copied = copy_project_files(a.out, vdir)
+        log("版本目录：%s（review.md、剪辑工程/%s）" % (vdir, "、".join(copied)))
 
 
 # ---------------------------------------------------------------- 字幕
@@ -1099,6 +1161,32 @@ def render_audio(mic, keep_frames, fps, workdir, fade_ms=6):
     return aac, len(out) / float(sr)
 
 
+def resolve_render_out(a, edl, workdir):
+    """不带 --version-dir：输出就是 --out。
+    带 --version-dir：复用 analyze 记在 edl.json 里、且顶层还没有成片的版本目录，否则新建 vN_<label>；
+    final 写在版本目录顶层，draft 写进 draft/，--preview 写进 preview/。文件名取 --out 的文件名，
+    没给 --out 就用 <profile>.mp4。"""
+    if not a.version_dir:
+        if not a.out:
+            die("render 需要 --out，或者给 --version-dir")
+        return a.out, None
+    root = os.path.abspath(a.version_dir)
+    rec = edl.get("version_dir")
+    if (rec and os.path.dirname(os.path.abspath(rec)) == root and os.path.isdir(rec)
+            and not has_final_render(rec) and not a.label):
+        vdir = rec
+    else:
+        vdir = next_version_dir(root, a.label or a.profile)
+    sub = "preview" if a.preview else ("draft" if a.profile == "draft" else "")
+    dest = os.path.join(vdir, sub) if sub else vdir
+    os.makedirs(dest, exist_ok=True)
+    name = os.path.basename(a.out) if a.out else "%s.mp4" % a.profile
+    if not name.lower().endswith(".mp4"):
+        name += ".mp4"
+    log("版本目录：%s（成片写入 %s）" % (vdir, os.path.relpath(os.path.join(dest, name), root)))
+    return os.path.join(dest, name), vdir
+
+
 def apply_profile(a, screen):
     """按 --profile / --size / --fps / --bitrate 确定输出规格，改写模块级 OUT_* 与 UI_K。"""
     global OUT_W, OUT_H, OUT_FPS, UI_K, CAM_MARGIN, CAM_BORDER
@@ -1144,6 +1232,7 @@ def cmd_render(a):
             die("素材不存在：%s=%s" % (k, v))
     apply_profile(a, media["screen"])
     fps = OUT_FPS
+    out_path, vdir = resolve_render_out(a, edl, workdir)
     keep = [(k["start"], k["end"]) for k in edl["keep"]]
     keep_f = quantize_keep(keep, fps)
 
@@ -1295,12 +1384,14 @@ def cmd_render(a):
     aac, a_dur = render_audio(media["mic"], keep_f, fps, workdir)
     log("  音频 %s，视频 %s" % (mmss(a_dur), mmss(total_frames / fps)))
 
-    out_path = a.out
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", video, "-i", aac,
          "-map", "0:v:0", "-map", "1:a:0", "-c", "copy", "-shortest", "-movflags", "+faststart", out_path])
     srt, mdp = write_review_files(out_path, lines, keep_f, fps, edl)
     log("字幕审阅：%s、%s" % (srt, mdp))
+    if vdir:
+        copied = copy_project_files(workdir, vdir)
+        log("剪辑工程副本：%s/剪辑工程/%s" % (vdir, "、".join(copied)))
     dt = time.time() - t_start
     log("完成：%s（%s，耗时 %.0fs）" % (out_path, mmss(ffprobe_duration(out_path)), dt))
     if not a.keep_temp:
@@ -1331,6 +1422,9 @@ cuts.json 是一个数组，每条：
     an.add_argument("--bundle", required=True, help="ScreenKite 的 .skbundle 目录（只读）")
     an.add_argument("--words", required=True, help="whisper 词级转写 json（sourceWords[]，秒）")
     an.add_argument("--out", required=True, help="工作目录，写 edl.json / review.md")
+    an.add_argument("--version-dir", help="内容包的 Video 目录：在下面新建 vN_<label>/，放 review.md 和 剪辑工程/ 副本；"
+                    "之后同一 workdir 的 render --version-dir 会复用这个目录")
+    an.add_argument("--label", help="版本目录的简短说明（默认 draft）")
     an.add_argument("--cuts", help="手工删除清单 cuts.json")
     an.add_argument("--term-fixes", help="术语修正字典 json：{\"错写\": \"正写\"}，读入转写时先替换再匹配锚点")
     an.add_argument("--silence-db", type=float, default=-35, help="静音阈值 dB（默认 -35）")
@@ -1348,7 +1442,10 @@ final 分辨率与帧率直接取屏幕源（不缩放不加黑边），码率�
 鼠标光标默认叠加（自绘带白边的箭头 / I 型光标，放大 1.6 倍，背后有半透明黄色光圈，点击时光圈闪一下），--no-cursor 关闭。
 先用 --preview 30 渲 30 秒试片看效果，再渲全片。""")
     rd.add_argument("--workdir", required=True, help="analyze 的输出目录（含 edl.json）")
-    rd.add_argument("--out", required=True, help="输出 mp4 路径")
+    rd.add_argument("--out", help="输出 mp4 路径；带 --version-dir 时只取文件名（默认 <profile>.mp4）")
+    rd.add_argument("--version-dir", help="内容包的 Video 目录：成片、.srt、-字幕.md、剪辑工程/ 副本写进 vN_<label>/"
+                    "（复用 analyze 建的、还没出正式片的版本目录，否则新建；draft 进 draft/，--preview 进 preview/）")
+    rd.add_argument("--label", help="新建版本目录的简短说明（默认 profile 名；显式给出时总是新建）")
     rd.add_argument("--profile", choices=list(PROFILES), default="draft",
                     help="draft（默认）：720p30 低码率草片，看剪辑用；final：分辨率、帧率跟屏幕源一致，正式片用")
     rd.add_argument("--size", help="覆盖 profile 的输出尺寸，如 1920x1080")

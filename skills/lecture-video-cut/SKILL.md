@@ -53,9 +53,19 @@ description: 剪 ScreenKite 录的讲解视频：去静音气口、按文字锚�
    默认 4 路并行；25 分钟源在 M 系列 Mac 上 draft 约 2 分钟、final（3024x1900@60）约 8 分钟。
    字幕每行 22 字、`\k` 卡拉 OK（说到变黄 #FFD54A）；鼠标光标默认叠加（自绘带白边箭头 / I 型光标放大 1.6 倍，
    背后半透明黄色光圈，点击时闪一下），`--no-cursor` 关闭，`--cursor-scale` / `--halo-size` / `--halo-alpha` 调。
-5. 每次 render 会在成片旁写 `<out>.srt` 和 `<out>-字幕.md`（成片时间码按句一行，剪切接缝处插一行
+5. **按版本归档**（推荐）：`analyze` 和 `render` 都加 `--version-dir <内容包>/Video`，脚本在下面建
+   `vN_<说明>/`（N = 已有最大编号 + 1，说明用 `--label` 传，默认 profile 名），放 review.md、成片、`.srt`、
+   `-字幕.md` 和 `剪辑工程/`（当次 edl.json / cuts.json / term-fixes.json 副本）。render 会复用 analyze 建的、
+   顶层还没有成片的版本目录，所以一轮 analyze → draft → final 落在同一个 vN 里：final 在顶层，draft 在 `draft/`，
+   `--preview` 在 `preview/`；给了 `--label` 就总是新建。不传 `--version-dir` 时照旧用 `--out`。
+   ```bash
+   lecture-cut analyze ... --version-dir <内容包>/Video --label 源分辨率_词边界
+   lecture-cut render --workdir <workdir> --version-dir <内容包>/Video --profile draft
+   lecture-cut render --workdir <workdir> --version-dir <内容包>/Video --profile final --out <片名>.mp4
+   ```
+6. 每次 render 会在成片旁写 `<out>.srt` 和 `<out>-字幕.md`（成片时间码按句一行，剪切接缝处插一行
    `--- 剪切点 ---`）。**把 `-字幕.md` 给用户扫一遍**：接缝前后两句连起来读不通，就是剪坏了。
-6. 验收：`ffmpeg -i` 看时长分辨率帧率；抽 3 帧看字幕 / 摄像头 / 光标 / 屏幕没被裁；挑 2 个时间点把字幕和
+7. 验收：`ffmpeg -i` 看时长分辨率帧率；抽 3 帧看字幕 / 摄像头 / 光标 / 屏幕没被裁；挑 2 个时间点把字幕和
    `edl.json` 反查的原文对一下。
 
 ## 失败怎么报
