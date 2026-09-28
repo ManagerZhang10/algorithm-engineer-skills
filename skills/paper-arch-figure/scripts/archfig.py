@@ -32,9 +32,9 @@ def find_drawio():
 
 
 def clean_svg(path):
-    """draw.io 的 SVG：删掉每个文字块的 PNG 兜底图（体积 ~10×），light-dark(A, B) 锁成 A，保证暗色系统下仍是浅色图。"""
+    """draw.io 的 SVG：删掉每个文字块的 PNG 兜底图（体积 ~10×；紧跟在 foreignObject 后面），light-dark(A, B) 锁成 A，保证暗色系统下仍是浅色图。"""
     t = path.read_text()
-    t = re.sub(r"<image [^>]*?/>", "", t)
+    t = re.sub(r"(</foreignObject>)<image [^>]*?/>", r"\1", t)  # 只删文字块的兜底图，保留 f.image 嵌入的真图
     out, i, key = [], 0, "light-dark("
     while True:
         j = t.find(key, i)
@@ -144,7 +144,8 @@ document.querySelectorAll('img[data-k]').forEach(i=>i.src=i.dataset.k+'_'+p+'.{e
     print(out / "index.html")
 
 
-TEMPLATE = '''"""新模型架构图 spec。先读技能里的 references/layouts.md，再照 assets/examples/six_edit_models.py 里结构最接近的函数改。"""
+TEMPLATE = '''"""新模型架构图 spec（三段放大模板；别的结构按 references/layouts.md 用原语自由排）。
+先读技能里的 references/layouts.md，再照 assets/examples/ 里结构最接近的函数改。"""
 from figlib import *  # noqa: F401,F403
 
 

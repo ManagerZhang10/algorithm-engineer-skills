@@ -1,6 +1,6 @@
 interface:
   display_name: "Paper Arch Figure"
-  short_description: "论文风模型架构图：三段放大（整体 / 一个 block / 独有机制），源码取证带行号，Python spec 生成可编辑 draw.io 并自查字号"
+  short_description: "论文风模型架构图：任意结构，统一五色语义风格，版式按结构自定（三段放大是现成模板之一）；源码取证带行号，Python spec 生成可编辑 draw.io 并自查字号"
   default_prompt: "使用 $paper-arch-figure 画这个模型的架构图：先从源码取证，再写 spec 导出，看过 PNG 再交付。"
 
 policy:

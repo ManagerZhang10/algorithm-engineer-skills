@@ -21,7 +21,7 @@
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
 | 4 | [kelip-slide](skills/kelip-slide/SKILL.md) | 用单文件 HTML 做 keynote 风讲解 deck：15 种页型模板、自绘 SVG 箭头自动连线与穿块检查、代码解读页（左代码色块 + 右同色注释卡）、渲染自查 | 做 / 改 HTML deck、slides、讲解 PPT、录屏分享页 | [自绘 SVG](skills/kelip-slide/references/svg.md)、[素材处理](skills/kelip-slide/references/media.md)、[改造](skills/kelip-slide/references/customize.md)、[来源](skills/kelip-slide/UPSTREAM.md) |
-| 5 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | 论文风神经网络架构图：任意结构（block 堆叠、编码器-解码器、多阶段流水线、小图），统一五色语义风格，版式按结构自定、三段放大是现成模板之一；先从源码取证记行号，再用 Python spec 生成可编辑 draw.io，导出 SVG / PNG 并按显示宽度自查字号 | 画模型架构图、把 block 内部画出来、重画论文结构图 | [取证](skills/paper-arch-figure/references/fact-sourcing.md)、[版式 API](skills/paper-arch-figure/references/layouts.md)、[样式](skills/paper-arch-figure/references/style.md)；脚本在 `scripts/`（Python 标准库 + draw.io 桌面版） |
+| 5 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | 论文风神经网络架构图：任意结构（block 堆叠、编码器-解码器、多阶段流水线、小图），统一五色语义风格，版式按结构自定、三段放大是现成模板之一；先从源码取证记行号，再用 Python spec 生成可编辑 draw.io，导出 SVG / PNG 并按显示宽度自查字号 | 画模型架构图、把 block 内部画出来、重画论文结构图 | [取证](skills/paper-arch-figure/references/fact-sourcing.md)、[版式 API](skills/paper-arch-figure/references/layouts.md)、[样式](skills/paper-arch-figure/references/style.md)、[经典图画法](skills/paper-arch-figure/references/classic-figures.md)；脚本在 `scripts/`（Python 标准库 + draw.io 桌面版） |
 | 6 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ScreenKite 录屏的 ffmpeg 剪辑流水线：麦克风静音去气口、文字锚点删卡壳重说段、逐字高亮 ASS 字幕、右下圆形摄像头、鼠标光标高亮与点击闪光；draft 草片 / final 与源同分辨率两档，每次出片附带字幕审阅 md 标出剪切接缝 | 剪 ScreenKite 录的讲解视频、去气口、加字幕、叠摄像头、高亮鼠标 | [转写术语修正](skills/lecture-video-cut/references/asr-term-fixes.md)；脚本在 `scripts/`（Python 标准库 + ffmpeg/libass） |
 
 ### 内容提取

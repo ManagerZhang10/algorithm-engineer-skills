@@ -14,7 +14,7 @@
 
 - **整体**：各路输入的 embedder 和维度；时间步 / guidance / 池化向量怎么合成调制输入；条件 token 用什么时间步；
   位置编码的类型和坐标怎么构造；block 数量和种类；输出头；最后返回哪些 token。
-- **一个 block**：按执行顺序列出每一步 —— Norm 类型、调制有几组系数（shift / scale / gate 各有没有）、
+- **关键单元**（要放大的那个 block / 模块）：按执行顺序列出每一步 —— Norm 类型、调制有几组系数（shift / scale / gate 各有没有）、
   调制权重是每层自己的还是全网共享、注意力（QK-Norm、RoPE 在 Norm 之前还是之后、mask）、FFN 类型和隐藏维度、残差怎么加。
 - **独有机制**：这个模型和同类最不一样的一处，要具体到张量怎么构造（索引、mask 规则、坐标值）。
 - **配置数字**：层数、头数、head dim、宽度、输入通道。
@@ -26,15 +26,17 @@
 ```text
 Read-only research. Source: <repo path> (commit <sha>), files <file list>.
 
-I need to draw a paper-style architecture diagram (overall model → one transformer block zoomed in →
-one unique mechanism zoomed in) for <model>. Report, citing file:line for every claim:
+I need to draw a paper-style architecture diagram for <model>: the overall data flow, the key unit
+(usually one block or module) zoomed in, and the one mechanism that sets this model apart.
+Report, citing file:line for every claim:
 
-1. Overall forward path: input projections and dims, timestep/condition embedding and how it becomes
-   modulation (and what timestep condition tokens get), positional encoding type and coordinate layout,
-   number and kinds of blocks, final norm / projection, which tokens are returned.
-2. ONE block as an ordered list of ops per stream: norm type, modulation chunks (which of shift/scale/gate,
-   per-block or shared), attention (QK norm, where RoPE is applied, mask), gated residuals, FFN type and
-   hidden size.
+1. Overall forward path: every module the data passes through in order (encoders, stages, blocks,
+   decoders, heads) with dims; how inputs and conditions enter (timestep/condition embedding, modulation,
+   cross-attention, concatenation); positional encoding type; number and kinds of repeated blocks;
+   what is returned.
+2. The key unit as an ordered list of ops per stream: norm type and placement (pre/post), modulation
+   (which of shift/scale/gate, per-block or shared), attention (QK norm, where RoPE is applied, mask,
+   cross-attention source), residuals and gates, FFN / conv type and hidden size.
 3. The unique mechanism: exact construction rules (indices, masks, coordinate values).
 4. Config numbers from __init__ defaults; note if released checkpoints differ.
 
@@ -44,6 +46,6 @@ as "not found".
 
 ## 把取证结果落到图上
 
-- 右段底部的出处行写 `仓库 @ commit · 文件:行号`，行号挑最关键的 2–4 处。
+- 独有做法附近的出处行写 `仓库 @ commit · 文件:行号`，行号挑最关键的 2–4 处。
 - 报告里标 not found 的内容不画进图；确实需要就在图上写「未核实」。
 - 发现和已有材料（deck、文章）说法冲突时，停下来告诉用户，不要静默改成任何一边。
