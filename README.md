@@ -21,8 +21,9 @@
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
 | 4 | [kelip-slide](skills/kelip-slide/SKILL.md) | 用单文件 HTML 做 keynote 风讲解 deck：15 种页型模板、自绘 SVG 箭头自动连线与穿块检查、代码解读页（左代码色块 + 右同色注释卡）、渲染自查 | 做 / 改 HTML deck、slides、讲解 PPT、录屏分享页 | [自绘 SVG](skills/kelip-slide/references/svg.md)、[素材处理](skills/kelip-slide/references/media.md)、[改造](skills/kelip-slide/references/customize.md)、[来源](skills/kelip-slide/UPSTREAM.md) |
-| 5 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | 论文风神经网络架构图：任意结构（block 堆叠、编码器-解码器、多阶段流水线、小图），统一五色语义风格，版式按结构自定、三段放大是现成模板之一；先从源码取证记行号，再用 Python spec 生成可编辑 draw.io，导出 SVG / PNG 并按显示宽度自查字号 | 画模型架构图、把 block 内部画出来、重画论文结构图 | [取证](skills/paper-arch-figure/references/fact-sourcing.md)、[版式 API](skills/paper-arch-figure/references/layouts.md)、[样式](skills/paper-arch-figure/references/style.md)、[经典图画法](skills/paper-arch-figure/references/classic-figures.md)；脚本在 `scripts/`（Python 标准库 + draw.io 桌面版） |
-| 6 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ScreenKite 录屏的 ffmpeg 剪辑流水线：麦克风静音去气口、文字锚点删卡壳重说段、逐字高亮 ASS 字幕、右下圆形摄像头、鼠标光标高亮与点击闪光；draft 草片 / final 与源同分辨率两档，每次出片附带字幕审阅 md 标出剪切接缝 | 剪 ScreenKite 录的讲解视频、去气口、加字幕、叠摄像头、高亮鼠标 | [转写术语修正](skills/lecture-video-cut/references/asr-term-fixes.md)；脚本在 `scripts/`（Python 标准库 + ffmpeg/libass） |
+| 5 | [deck-portrait](skills/deck-portrait/SKILL.md) | 横屏 HTML deck 自动重排成竖屏 3:4 PNG：页面上的文字块改竖排，图整张保留原结构，图里字太小时追加带小地图的局部放大页，逐页量字号出自查报告 | 横屏 deck 手机上字太小、要导成小红书竖图 | 脚本在 `scripts/`（零依赖，Node ≥ 22 + Chrome） |
+| 6 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | 论文风神经网络架构图：任意结构（block 堆叠、编码器-解码器、多阶段流水线、小图），统一五色语义风格，默认论文式三段放大、主干自下而上，有金样板可对照；先从源码取证记行号，再用 Python spec 生成可编辑 draw.io，导出 SVG / PNG 并按显示宽度自查字号 | 画模型架构图、把 block 内部画出来、重画论文结构图 | [取证](skills/paper-arch-figure/references/fact-sourcing.md)、[版式 API](skills/paper-arch-figure/references/layouts.md)、[样式](skills/paper-arch-figure/references/style.md)、[经典图画法](skills/paper-arch-figure/references/classic-figures.md)；脚本在 `scripts/`（Python 标准库 + draw.io 桌面版） |
+| 7 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ScreenKite 录屏的 ffmpeg 剪辑流水线：麦克风静音去气口、文字锚点删卡壳重说段、逐字高亮 ASS 字幕、右下圆形摄像头、鼠标光标高亮与点击闪光；draft 草片 / final 与源同分辨率两档，每次出片附带字幕审阅 md 标出剪切接缝 | 剪 ScreenKite 录的讲解视频、去气口、加字幕、叠摄像头、高亮鼠标 | [转写术语修正](skills/lecture-video-cut/references/asr-term-fixes.md)；脚本在 `scripts/`（Python 标准库 + ffmpeg/libass） |
 
 ### 内容提取
 
@@ -57,6 +58,12 @@
 - **架构规划**面向听众。核心是一条能被口头复述的因果链，
   正文长度由有效讲述时长反推，验收标准是「讲述者能不能脱稿复述主线并回答质疑」。
 - **实习汇报**面向实习总结、转正或晋升场景。核心是把项目从工作交付逐步组织为方法、全局判断、角色定位和可信的增量价值；验收标准是「听众能说出共同主线、个人贡献和下一步」。
+
+### 讲解幻灯片与竖屏导出
+
+- **kelip-slide** 负责做和改横屏 deck 本身，内容、页型、自绘图都在这里定。
+- **deck-portrait** 只接已经做好的 deck，不改内容，只按竖屏重排并导出 PNG；竖屏里某页不好看，先在它的 `portrait.json` 里微调，仍不行再回 kelip-slide 改原页。
+- **paper-arch-figure** 只负责模型架构图这一种图，产出可编辑的 draw.io 和 SVG / PNG；图做好后作为素材放进 kelip-slide 的一图页。kelip-slide 自带的自绘 SVG 适合流程和示意，block 级的模型结构用这个。
 
 ### 小红书图文转写与实习汇报
 
@@ -109,6 +116,12 @@ ln -s "$PWD/skills/decision-stress-testing" ~/.claude/skills/
 ```
 
 项目级安装把链接放进 `<repo>/.claude/skills/` 即可。
+
+带命令行脚本的技能可以顺手把入口链进 PATH，例如：
+
+```bash
+ln -s "$PWD/skills/paper-arch-figure/scripts/archfig.py" ~/.local/bin/archfig
+```
 
 ## 来源与边界
 

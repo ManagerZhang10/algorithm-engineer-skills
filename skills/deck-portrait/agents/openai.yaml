@@ -1,0 +1,7 @@
+interface:
+  display_name: "Deck Portrait"
+  short_description: "横屏 HTML deck 自动重排成竖屏 3:4 PNG：页面竖排、图整张保留、小字图追加局部放大页、字号自查"
+  default_prompt: "使用 $deck-portrait 把这个 deck 转成竖屏 PNG，跑完看 contact.png 自查再交付。"
+
+policy:
+  allow_implicit_invocation: true
