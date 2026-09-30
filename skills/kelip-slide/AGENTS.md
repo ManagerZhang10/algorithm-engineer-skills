@@ -7,8 +7,8 @@ Chrome 打开键盘翻页。
 
 1. **先读 `SKILL.md`**，按它的版式系统和流程做，不要自己另起一套 CSS。
 2. 从 `assets/deck-template.html` 复制模板，里面 15 种页型各有一个填好的示例页。
-3. **排完必须跑 `assets/render_preview.py` 把每页渲染成图，自己看一遍再交付**——
-   版式问题（图顶边、白卡空一半、表格挤成一团）只有看图才发现得了。
+3. **改完必须截图自己看一遍再交付，但只截改过的页**：`assets/render_pages.sh <页码...>`。
+   整本 `render_preview.py` 只在新 deck 首次搭完或用户要求全量时前台跑一次（规则见 `SKILL.md` 自查回路）。
    有自绘 SVG 的再跑 `assets/check_arrows.py deck.html`，✗ 全部改掉。
 4. **图页 `.sub` 必填，每个内容页末尾必有 `.talk` 讲稿块**——deck 是发出去看的，没人讲解，规则在 `SKILL.md`。
 5. **讲代码的页一律用「代码解读页」**（`.cx`：左代码色块、右同色注释卡、上下顺序对齐），规则在 `SKILL.md`。

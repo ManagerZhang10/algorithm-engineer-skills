@@ -409,10 +409,10 @@ svg[data-anim] [data-a].on{opacity:1}
 <span class="hp">out = out.transpose(1, 2).reshape(B, N, -1)</span>
 <span class="hp">return self.to_out(out)</span></pre></div>
     <div class="notes">
-      <div class="note b"><div class="h">蓝：第一段在做什么</div><div class="d">一两句话，行内代码用 <code>code</code>，写形状变化 <code>(B, N, C)</code> → <code>(B, H, N, D)</code>。</div></div>
-      <div class="note o"><div class="h">橙：第二段在做什么</div><div class="d">为什么要有这一步、不做会怎样，哪个版本打开了。</div></div>
-      <div class="note g"><div class="h">绿：第三段在做什么</div><div class="d">最关键的一段，说清楚它<b>不是</b>什么，避免读者套错概念。</div></div>
-      <div class="note p"><div class="h">紫：第四段在做什么</div><div class="d">回到哪里去，接下一页的哪一段。</div></div>
+      <div class="note b"><div class="h">第一段在做什么</div><div class="d">一两句话，行内代码用 <code>code</code>，写形状变化 <code>(B, N, C)</code> → <code>(B, H, N, D)</code>。</div></div>
+      <div class="note o"><div class="h">第二段在做什么</div><div class="d">为什么要有这一步、不做会怎样，哪个版本打开了。</div></div>
+      <div class="note g"><div class="h">第三段在做什么</div><div class="d">最关键的一段，说清楚它<b>不是</b>什么，避免读者套错概念。</div></div>
+      <div class="note p"><div class="h">第四段在做什么</div><div class="d">回到哪里去，接下一页的哪一段。</div></div>
     </div>
   </div>
   <div class="talk">代码解读页的讲稿说这段代码<b>在整个前向里的位置</b>，以及下一页接哪一段；逐段解释已经在右侧卡里。</div>

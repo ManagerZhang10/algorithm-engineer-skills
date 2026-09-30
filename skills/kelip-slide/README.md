@@ -84,7 +84,7 @@ cp -r manager-zhang-skills/skills/kelip-slide tools/kelip-slide
 ```bash
 mkdir -p mydeck/media && cd mydeck
 cp <kelip-slide 目录>/assets/deck-template.html deck.html   # Claude Code: ~/.claude/skills/kelip-slide
-cp <kelip-slide 目录>/assets/render_preview.py <kelip-slide 目录>/assets/check_arrows.py .
+cp <kelip-slide 目录>/assets/{render_pages.sh,render_preview.py,check_arrows.py} .
 open deck.html          # Linux: xdg-open
 ```
 
@@ -174,6 +174,7 @@ python3 check_arrows.py deck.html
 | `SKILL.md` | 给 agent（和人）看的规范：版式系统、15 种页型速查、自查回路、常见坑 |
 | `AGENTS.md` | 一行指路，给会自动读它的 agent |
 | `assets/deck-template.html` | 模板：全部组件 CSS + 导航 JS + 每种页型一个示例页 |
+| `assets/render_pages.sh` | 只截指定页（改完页后的默认自查） |
 | `assets/render_preview.py` | 逐页渲染成 PNG 并拼成缩略图 |
 | `assets/check_arrows.py` | 检查自绘图的箭头有没有对准块、有没有穿过别的块 |
 | `references/svg.md` | 自绘机制图：坐标系、配色字号表、四种画法、箭头自动连线、分步动画 |
