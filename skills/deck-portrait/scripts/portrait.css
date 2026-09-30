@@ -1,0 +1,78 @@
+/* 竖屏覆盖层：注入到横屏 deck 里，把 1920×1080 的舞台改成 --pt-w × --pt-h 并重排。
+   只覆盖版式，不改内容。所有尺寸按 1080 宽的画布写。 */
+html,body{width:var(--pt-w)!important;height:var(--pt-h)!important;overflow:hidden!important}
+#stage{left:0!important;top:0!important;width:var(--pt-w)!important;height:var(--pt-h)!important;transform:none!important}
+#nav-hot,#nav-btn,#nav-panel,#hud{display:none!important}
+
+.slide{padding:76px 60px 60px!important}
+.slide.has-note{padding-bottom:52px!important}
+.kicker{font-size:21px;letter-spacing:.06em;line-height:1.45}
+h1{font-size:58px;line-height:1.22;margin-top:16px}
+.sub{font-size:30px;margin-top:14px;line-height:1.45}
+.talk{font-size:28px;line-height:1.55;margin-top:28px}
+.slide > .note{font-size:24px;margin-top:22px;line-height:1.5;text-align:left}
+
+/* 横排容器一律改竖排 */
+.fig2,.two,.code2,.cx,.slide > .row,.cards,.steps{flex-direction:column!important}
+.fig,.diagbox,.tblwrap,.grid2,.grid4,.stats,.cards,.steps,.code2,.cx,.slide > .row,.quotes{margin-top:36px}
+.fig2{gap:24px!important;margin-top:36px}
+.fig2 > .fig,.fig2 > .tblwrap{margin:0}
+.fig2 > .tblwrap{flex:none!important}
+.two{gap:36px;margin-top:40px}
+.two .col{flex:none}
+.li{font-size:28px;padding:14px 0}
+.cards{gap:22px;align-items:stretch}
+.card{min-height:0;padding:30px 32px}
+.steps{gap:18px}
+.step{padding:26px 30px}
+.code2,.cx{gap:22px}
+.cx .code,.code2 .code{flex:1 1 auto}
+.notes{flex:none!important}
+.slide > .row{gap:24px}
+.row.anim .diagbox{margin-top:0}
+.stepcol{flex:none!important;gap:10px}
+
+/* 分步动画页导出终态：所有步骤点亮 */
+svg[data-anim] [data-a]{opacity:1!important}
+.step-item{opacity:1!important;background:transparent!important;box-shadow:none!important;padding:6px 8px!important}
+.step-item .sn{background:var(--accent)!important}
+
+/* 数字卡 3 列改 2 列 */
+.stats{grid-template-columns:repeat(2,1fr)!important;gap:20px}
+.stat{padding:28px 30px}
+.stat .n{font-size:68px}
+
+/* 表：文字表允许换行 */
+.tblwrap{padding:30px 30px}
+.tbl.left td,.tbl.left td:nth-child(2){white-space:normal}
+.tbl.dsl td:first-child{white-space:nowrap}
+
+/* 时间线横排改竖排 */
+.tl-row{flex-direction:column;padding-top:0;gap:34px;padding-left:44px}
+.tl-row:before{left:9px;right:auto;top:8px;bottom:8px;width:2px;height:auto}
+.tl{text-align:left}
+.tl .dot{left:-44px;top:10px;transform:none}
+.tl .w{padding:0}
+
+/* 大字页 */
+.bigline .row{font-size:50px}
+
+/* 封面：标题在上，图条改成两行拼图 */
+.cover .t{position:relative;left:auto;top:auto;padding:150px 60px 0}
+.cover h1{font-size:150px}
+.cover .p{font-size:38px;max-width:none}
+.cover .brand{right:60px;top:76px}
+.cover .photos{height:560px;flex-wrap:wrap;gap:6px}
+.cover .photos img{flex:1 1 30%;height:calc(50% - 3px)}
+
+.divider .word{font-size:128px}
+.end h1{font-size:80px}
+.end .big{font-size:36px}
+
+/* 图的视窗与放大页小地图（portrait.js 生成） */
+.pt-panels{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pt-panels > svg,.pt-panels > img,.pt-mini > svg,.pt-mini > img{position:static!important;inset:auto!important;margin:0!important;padding:0!important;flex:none;display:block;max-width:none}
+.pt-panels > img,.pt-mini > img{border-radius:0!important;object-fit:fill!important}
+.pt-mini{position:relative;flex:none;opacity:.9}
+.pt-hl{position:absolute;border:3px solid var(--accent);background:rgba(0,113,227,.10);border-radius:6px;box-sizing:border-box}
+.pt-part{color:var(--accent);font-weight:600}
