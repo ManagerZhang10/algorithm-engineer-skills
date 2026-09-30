@@ -31,8 +31,11 @@
 | `f.group(x, y, w, h, title, dashed=True)` | 带标题的分组虚线框（编码器 / 一个 stage / 训练 vs 推理） |
 | `f.panel(x, y, w, h, main=True)` | 放大面板底框：`main=True` 黑边主面板，`False` 灰边次面板。先画 |
 | `f.seq(x, y, w, h, title, segs)` | 序列条，返回 `(容器 id, [段 id])` |
-| `f.up(a, b)` / `f.right(a, b)` | a 下 b 上竖直连 / a 左 b 右水平连 |
-| `f.edge(src, tgt, sx=, sy=, ex=, ey=, pts=, start=, end=, dashed=, color=)` | 任意连线；`sx/sy/ex/ey` 是 0–1 的出入点，`pts` 是折点 |
+| `f.up(a, b)` / `f.right(a, b)` | a 下 b 上竖直连 / a 左 b 右水平连（都连边中点） |
+| `f.vline(a, b)` | a 下 b 上，竖直线落在较窄那块的中心：多个块落进一条宽序列条、宽块分给几个窄块 |
+| `f.loop(from_id, to_id, x_side, label="×K")` | 迭代回边：侧边中点出 → 沿 x_side 竖走 → 侧边中点进，旁边标 ×K |
+| `f.edge(src, tgt, sx=, sy=, ex=, ey=, pts=, start=, end=, dashed=, color=, kind=)` | 任意连线；`sx/sy/ex/ey` 只取边中点（0 / .5 / 1 的组合），`pts` 只用于分叉树杈；`kind="route"` 标经典走线例外 |
+| `f.lint()` | 返回连线问题列表；`archfig build` 会自动调用，规则见 style.md「连线」 |
 | `f.residual(from_id, plus_id, x_side)` | 残差：从块顶上方分出，沿 `x_side` 上行进 ⊕ |
 | `f.bus(src_id, targets, x_bus, labels=)` | 调制总线：灰线从调制源上行，逐个水平进入目标 |
 | `f.inject(src_id, tgt_id, side=)` | 侧向注入 |
@@ -110,5 +113,6 @@ dual_block(f, streams=(...), attn=(label, sub), ffn=..., mods=((txt, hl), (img, 
 
 1. 先打开最接近的金样板 PNG，定放大关系；主干默认竖直向上，只有经典结构沿用原图习惯时才横向。
 2. 从主干开始用 `stack` / `row` 排，拿到 id 后再补跨列连线、分组框、放大面板。
+   块的位置按「要连的两块中心对齐」来定：先定上游块，下游块的 x 用上游块中心反推，别各自凑整数坐标。
 3. 面板和分组框的位置先粗定，出图后按 PNG 微调坐标。标题文字和下方第一个块之间至少留 12px。
 4. 每个面板底部一行 `caption`，出处用 `src` 或一行 9.5px 灰字。

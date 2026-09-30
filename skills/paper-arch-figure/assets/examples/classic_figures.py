@@ -28,8 +28,9 @@ def lora(pal):
     f.text(384, 150, 120, 18, "BAx 乘 α / r", fs=10.5, align="left")
     h = f.box(170, 56, 180, 34, "h = W_{0}x + BAx", "io")
     f.up(p, h)
-    f.edge(x, w0, sx=.3, sy=0, ex=.5, ey=1, pts=[(236, 352), (140, 352)])
-    f.edge(x, a, sx=.7, sy=0, ex=.5, ey=1, pts=[(284, 352), (375, 352)])
+    xx = f.geo[x][0] + f.geo[x][2] / 2   # 从 x 顶边中点分叉
+    f.edge(x, w0, sx=.5, sy=0, ex=.5, ey=1, pts=[(xx, 352), (140, 352)])
+    f.edge(x, a, sx=.5, sy=0, ex=.5, ey=1, pts=[(xx, 352), (375, 352)])
     foot(f, 20, 500, 432, "LoRA：冻结 W_{0}，只训练低秩的 B·A", "出处：Hu et al. 2021 · 图 1、§4.1")
     return f
 
@@ -50,8 +51,8 @@ def vae(pal):
     dec = f.trap(580, cy - 60, 140, 120, "解码器", "io", narrow="left", sub="p_{θ}(x | z)")
     xr = f.box(740, cy - 24, 80, 48, "重建 x′", "io")
     f.right(x, enc)
-    f.edge(enc, mu, sx=1, sy=.42, ex=0, ey=.5, pts=[(265, cy - 10), (265, cy - 40)])
-    f.edge(enc, sg, sx=1, sy=.58, ex=0, ey=.5, pts=[(265, cy + 10), (265, cy + 40)])
+    f.edge(enc, mu, sx=1, sy=.5, ex=0, ey=.5, pts=[(258, cy), (258, cy - 40)])   # 从右边中点分叉
+    f.edge(enc, sg, sx=1, sy=.5, ex=0, ey=.5, pts=[(258, cy), (258, cy + 40)])
     f.right(sg, mul)
     f.up(eps, mul)
     f.edge(mu, add, sx=1, sy=.5, ex=.5, ey=0, pts=[(450, cy - 40)])
@@ -135,7 +136,8 @@ def unet(pal):
     for k in range(3, -1, -1):
         up = bar(cx_of(prev) + 30, k)
         f.edge(prev, up, sx=.5, sy=0, ex=.5, ey=1, pts=[(cx_of(prev), cys[k] + hts[k] / 2 + 16),
-                                                       (cx_of(up), cys[k] + hts[k] / 2 + 16)])
+                                                       (cx_of(up), cys[k] + hts[k] / 2 + 16)],
+               kind="route")   # U-Net 原图的上卷积走线：先上、横移、再进上一层，沿用经典画法
         ux, uy, uw, uh = f.geo[up]
         cp = f.box(ux - uw, uy, uw, uh, "", "white", arc=8, stroke="#9A9A9A", sw=1, dashed=True)
         f.edge(enc[k], cp, sx=1, sy=.5, ex=0, ey=.5, dashed=True, color="#9A9A9A", w=1.2)

@@ -89,12 +89,18 @@ def cmd_build(a):
     exe = find_drawio() if fmts else None
     if fmts and not exe:
         sys.exit("找不到 draw.io 桌面版。装好后重试，或用 --fmt none 只生成 .drawio，或设 DRAWIO=/path/to/draw.io")
-    made = []
+    made, bad = [], 0
     for key, title, fn in figs:
         if only and key not in only:
             continue
         for pal in pals:
             f = fn(pal)
+            probs = f.lint() if a.lint != "off" and hasattr(f, "lint") else []
+            if probs and pal == pals[0]:
+                bad += len(probs)
+                print(f"✗ {key}：连线检查 {len(probs)} 处")
+                for pr in probs:
+                    print("    " + pr)
             xml = f.xml(title)
             d = out / f"{key}_{pal}.drawio"
             d.write_text(xml)
@@ -119,6 +125,11 @@ def cmd_build(a):
             made.append((key, title, pal))
     if a.gallery:
         write_gallery(out, made, "svg" if "svg" in fmts else ("png" if "png" in fmts else None))
+    if bad:
+        msg = f"连线检查共 {bad} 处问题（规则见 references/style.md「连线」）。产物已写出，便于对照修改。"
+        if a.lint == "error":
+            sys.exit(msg)
+        print(msg)
 
 
 def write_gallery(out, made, ext):
@@ -205,6 +216,8 @@ def main():
     b.add_argument("--only")
     b.add_argument("--fit-width", type=int)
     b.add_argument("--gallery", action="store_true")
+    b.add_argument("--lint", default="error", choices=["error", "warn", "off"],
+                   help="连线检查：error（默认，有问题时退出码 1）/ warn（只打印）/ off")
     sub.add_parser("doctor")
     n = sub.add_parser("new")
     n.add_argument("name")
