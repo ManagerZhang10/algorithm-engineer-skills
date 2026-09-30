@@ -25,7 +25,7 @@
 | GNN / 图 | 节点 + 边 | `node`、`edge(arrow=False)` | 原语够用 |
 | GAN | 生成器、判别器两个块 + 真假样本 | `box`、`row` | 原语够用 |
 | MoE | 路由 + 多个专家并排 + 加权求和 | `box`、`edge` | 已实测（HunyuanImage 3.0 右段） |
-| Latent Diffusion / 多阶段 | 横向流水线 + 条件注入 + 放大 | `row`、`group`、`zoom(side="down")` | 已实测（free_layouts） |
+| Latent Diffusion / 多阶段 | 照 LDM 原图重画时可用横向流水线；讲解或新图默认按三段自下而上 | `row`、`group`、`zoom(side="down")` | 已实测（free_layouts） |
 | 扩散前向 / 反向链 | 一行从清晰到噪声的图 | `image` + `row` 式排列 | 原语够用，需要自备图片 |
 | Mamba / SSM 块 | 两路分支 + σ 门 + ⊗ | `stack`、`op` | 原语够用 |
 

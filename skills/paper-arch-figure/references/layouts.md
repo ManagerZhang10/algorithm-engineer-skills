@@ -6,7 +6,7 @@
 **现成版式**是用原语拼好的常用组合，可以放在画布任意位置，也可以完全不用。
 
 完整用例：`assets/examples/six_edit_models.py`（三段放大，覆盖双流、单流、并行单流、LLM 解码层四种 block）、
-`assets/examples/free_layouts.py`（两段的编码器-解码器、横向流水线 + 向下放大）、
+`assets/examples/free_layouts.py`（两段的编码器-解码器；其中 `ldm()` 是横向流水线的旧写法，只作经典 LDM 图参考，新图按三段自下而上画）、
 `assets/examples/classic_figures.py`（LoRA、VAE、LeNet、U-Net、ViT、CLIP、LSTM、ControlNet、MLP 九张经典图）。
 经典结构该用哪个原语见 `references/classic-figures.md`。
 
@@ -108,7 +108,7 @@ dual_block(f, streams=(...), attn=(label, sub), ffn=..., mods=((txt, hl), (img, 
 
 ## 自由排版的做法
 
-1. 先在纸面上定主干方向（竖直向上或横向向右，一张图只用一个主方向）和放大关系。
+1. 先打开最接近的金样板 PNG，定放大关系；主干默认竖直向上，只有经典结构沿用原图习惯时才横向。
 2. 从主干开始用 `stack` / `row` 排，拿到 id 后再补跨列连线、分组框、放大面板。
 3. 面板和分组框的位置先粗定，出图后按 PNG 微调坐标。标题文字和下方第一个块之间至少留 12px。
 4. 每个面板底部一行 `caption`，出处用 `src` 或一行 9.5px 灰字。
