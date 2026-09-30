@@ -7,7 +7,9 @@
 两套都遵守同一约定：hl=True 的块画蓝框，表示「这个模型独有的做法」。
 """
 import html
+import os
 import re
+import sys
 
 
 def _md(s):
@@ -40,6 +42,16 @@ PALETTES = {
 }
 
 
+def _caller():
+    """调用 edge 的 spec 位置（跳过 figlib 自己），lint 报错时指到 spec 的行号。"""
+    fr = sys._getframe(2)
+    here = os.path.abspath(__file__)
+    while fr and os.path.abspath(fr.f_code.co_filename) == here:
+        fr = fr.f_back
+    fr = fr or sys._getframe(2)
+    return f"{os.path.basename(fr.f_code.co_filename)}:{fr.f_lineno}"
+
+
 class Fig:
     def __init__(self, palette="paper"):
         self.P = PALETTES[palette]
@@ -47,6 +59,7 @@ class Fig:
         self.cells = []
         self.n = 0
         self.geo = {}
+        self.edges = []   # 每根线的端点和走线，给 lint() 用
 
     def _id(self):
         self.n += 1
@@ -159,7 +172,7 @@ class Fig:
         for a, b in zip(cols, cols[1:]):
             for s in a:
                 for d in b:
-                    self.edge(s, d, sx=1, sy=.5, ex=0, ey=.5, arrow=False, color="#B0B0B0", w=0.9)
+                    self.edge(s, d, sx=1, sy=.5, ex=0, ey=.5, arrow=False, color="#B0B0B0", w=0.9, kind="deco")
         return cols
 
     def image(self, x, y, w, h, path):
@@ -198,8 +211,12 @@ class Fig:
         return c, ids
 
     def edge(self, src=None, tgt=None, pts=(), dashed=False, arrow=True, sx=None, sy=None,
-             ex=None, ey=None, start=None, end=None, color=None, label=None, w=1.4):
+             ex=None, ey=None, start=None, end=None, color=None, label=None, w=1.4, kind="flow"):
+        """kind 给 lint 用：flow（普通数据流，默认）、residual / bus / loop / route（figlib 画的正交走线）、
+        zoom / deco（放大虚线、神经元连线，不查）。spec 里一般不用传。"""
         i = self._id()
+        self.edges.append(dict(src=src, tgt=tgt, sx=sx, sy=sy, ex=ex, ey=ey, pts=list(pts),
+                               start=start, end=end, kind=kind, at=_caller()))
         col = color or self.P["edge"]
         st = (f"edgeStyle=none;html=1;strokeColor={col};strokeWidth={w};endArrow={'block' if arrow else 'none'};"
               f"endFill=1;endSize=5;fontSize=11;fontFamily={FONT};fontColor={self.P['sub']};")
@@ -230,7 +247,7 @@ class Fig:
         "down"：块底边两角 → 面板顶边；"up"：块顶边两角 → 面板底边。"""
         x, y, w, h = self.geo[src_box]
         px, py, pw, ph = panel_rect
-        kw = dict(arrow=False, dashed=True, color="#555555", w=1.2)
+        kw = dict(arrow=False, dashed=True, color="#555555", w=1.2, kind="zoom")
         if side in ("right", "left"):
             sx, ex = (x + w, px) if side == "right" else (x, px + pw)
             self.edge(start=(sx, y), end=(ex, py + 2), **kw)
@@ -239,6 +256,17 @@ class Fig:
             sy, ey = (y + h, py) if side == "down" else (y, py + ph)
             self.edge(start=(x, sy), end=(px + 2, ey), **kw)
             self.edge(start=(x + w, sy), end=(min(px + pw - 2, x + w + 44), ey), **kw)
+
+    def vline(self, a, b, **kw):
+        """a 在下、b 在上，画一根竖直线：x 取两块里较窄那块的中心（多个块落进一条宽条、从宽块分给几个窄块）。
+        较窄块的中心不在另一块的横向范围内时，退回中点连中点（斜线）。"""
+        ax, ay, aw, ah = self.geo[a]
+        bx, by, bw, bh = self.geo[b]
+        x = ax + aw / 2 if aw <= bw else bx + bw / 2
+        if ax <= x <= ax + aw and bx <= x <= bx + bw:
+            self.edge(a, b, sx=round((x - ax) / aw, 4), sy=0, ex=round((x - bx) / bw, 4), ey=1, **kw)
+        else:
+            self.edge(a, b, sx=.5, sy=0, ex=.5, ey=1, **kw)
 
     def right(self, a, b):
         """a 在左、b 在右，水平向右连"""
@@ -316,7 +344,7 @@ class Fig:
         sy = fy - 8
         right = x_side > px
         self.edge(tgt=plus_id, ex=1 if right else 0, ey=.5, start=(fx + fw / 2, sy),
-                  pts=[(x_side, sy), (x_side, py + ph / 2)])
+                  pts=[(x_side, sy), (x_side, py + ph / 2)], kind="residual")
 
     def bus(self, src_id, targets, x_bus, labels=None):
         """调制总线：从 src 顶边出发沿 x_bus 上行，逐个水平箭头进入 targets 的侧边，灰色。"""
@@ -327,14 +355,18 @@ class Fig:
             tx, ty, tw, th = self.geo[t]
             cy = ty + th / 2
             right = x_bus > tx + tw / 2
-            self.edge(tgt=t, ex=1 if right else 0, ey=.5, start=(x_bus, cy), color=col, w=1.2)
+            self.edge(tgt=t, ex=1 if right else 0, ey=.5, start=(x_bus, cy), color=col, w=1.2, kind="bus")
             if labels and labels[k]:
                 lx = x_bus + 3 if right else x_bus - 43
                 self.text(lx, cy - 16, 40, 14, labels[k], fs=10, color="#8A8A8A", align="left" if right else "right")
             ys.append(cy)
         top = min(ys)
-        self.edge(arrow=False, start=(sx + sw / 2, sy), end=(x_bus, top),
-                  pts=[(sx + sw / 2, sy - 10), (x_bus, sy - 10)], color=col, w=1.2)
+        if sx <= x_bus <= sx + sw:   # 总线落在调制源上方：从顶边竖直上去
+            self.edge(arrow=False, start=(x_bus, sy), end=(x_bus, top), color=col, w=1.2, kind="bus")
+        else:                        # 在侧面：从侧边中点水平出去，再上行，不留小钩子
+            ex = sx if x_bus < sx else sx + sw
+            self.edge(arrow=False, start=(ex, sy + sh / 2), end=(x_bus, top),
+                      pts=[(x_bus, sy + sh / 2)], color=col, w=1.2, kind="bus")
 
     def inject(self, src_id, tgt_id, side="right"):
         """侧向注入：从 src 的左/右边中点水平进入 tgt"""
@@ -342,6 +374,100 @@ class Fig:
             self.edge(src_id, tgt_id, sx=0, sy=.5, ex=1, ey=.5)
         else:
             self.edge(src_id, tgt_id, sx=1, sy=.5, ex=0, ey=.5)
+
+    def loop(self, from_id, to_id, x_side, label=None):
+        """迭代回边（采样循环 ×K、自回归）：从 from_id 侧边中点水平出到 x_side，竖直走到 to_id 的高度，
+        再水平进 to_id 侧边中点。x_side 在两块右侧就走右边，否则走左边。label 写在竖线旁，如「×K」。"""
+        fx, fy, fw, fh = self.geo[from_id]
+        tx, ty, tw, th = self.geo[to_id]
+        right = x_side > fx + fw / 2
+        s, e = (1 if right else 0), (1 if right else 0)
+        y0, y1 = fy + fh / 2, ty + th / 2
+        self.edge(from_id, to_id, sx=s, sy=.5, ex=e, ey=.5, pts=[(x_side, y0), (x_side, y1)], kind="loop")
+        if label:
+            lx = x_side + 4 if right else x_side - 44
+            self.text(lx, (y0 + y1) / 2 - 9, 40, 18, label, fs=12, color=self.P["text"], bold=True,
+                      align="left" if right else "right")
+
+    # ---------- 连线检查 ----------
+    def _anchor(self, bid, fx, fy):
+        x, y, w, h = self.geo[bid]
+        return (x + fx * w, y + fy * h)
+
+    def lint(self, tol=12, min_seg=20):
+        """查连线，返回问题列表（空 = 通过）。规则见 references/style.md「连线」：
+        1. 连到块的线只能从四个边中点出入；例外是出入点偏离中点、但线段正好水平或竖直（多列竖直落进一条宽序列条）。
+        2. 直线可以斜；但两端只差 1–tol px 的「几乎竖直 / 水平」算没对齐，要挪块。
+        3. 折线的每段必须水平或竖直，且不短于 min_seg px（杜绝小台阶）；
+           flow 类型的线不许手写 pts，折线只留给 residual / bus / loop / route。"""
+        MID = {(.5, 0), (.5, 1), (0, .5), (1, .5)}
+        out = []
+        # 分叉 / 汇合：同一出点连出去（或同一入点连进来）的多根线，允许走 Z 形树杈
+        from collections import Counter
+        fl = [e for e in self.edges if e["kind"] == "flow"]
+        outs = Counter((e["src"], e["sx"], e["sy"]) for e in fl if e["src"])
+        ins = Counter((e["tgt"], e["ex"], e["ey"]) for e in fl if e["tgt"])
+        for e in self.edges:
+            if e["kind"] in ("zoom", "deco"):
+                continue
+            at = e["at"]
+            # 端点
+            try:
+                p0 = self._anchor(e["src"], e["sx"], e["sy"]) if e["src"] and e["sx"] is not None else e["start"]
+                p1 = self._anchor(e["tgt"], e["ex"], e["ey"]) if e["tgt"] and e["ex"] is not None else e["end"]
+            except KeyError:
+                continue
+            if (e["src"] and e["sx"] is None) or (e["tgt"] and e["ex"] is None):
+                out.append(f"{at}：连线没写出入点（sx/sy/ex/ey），draw.io 会自己挑位置")
+                continue
+            if p0 is None or p1 is None:
+                continue
+            poly = [p0] + [tuple(p) for p in e["pts"]] + [p1]
+            first, last = poly[1], poly[-2]
+            for end, (bid, fx, fy), nxt in (("出点", (e["src"], e["sx"], e["sy"]), first),
+                                             ("入点", (e["tgt"], e["ex"], e["ey"]), last)):
+                if not bid or bid not in self.geo:
+                    continue
+                if (round(fx, 3), round(fy, 3)) not in MID:
+                    a = self._anchor(bid, fx, fy)
+                    axis = abs(a[0] - nxt[0]) < .5 or abs(a[1] - nxt[1]) < .5
+                    if e["pts"] and e["kind"] == "flow":
+                        out.append(f"{at}：折线的{end}不在边中点（{fx}, {fy}）；折线只能从边中点出入")
+                    elif not axis:
+                        out.append(f"{at}：{end}不在边中点（{fx}, {fy}），又不是水平 / 竖直线；改成从边中点连")
+            segs = list(zip(poly, poly[1:]))
+            if len(segs) == 1:
+                (x0, y0), (x1, y1) = segs[0]
+                dx, dy = abs(x1 - x0), abs(y1 - y0)
+                if 0.5 < dx <= tol and dy > dx * 3:
+                    out.append(f"{at}：几乎竖直但歪了 {dx:.0f}px；把两块中心对齐")
+                elif 0.5 < dy <= tol and dx > dy * 3:
+                    out.append(f"{at}：几乎水平但歪了 {dy:.0f}px；把两块中心对齐")
+                continue
+            if e["kind"] == "flow":
+                (a0, a1), (b0, b1) = segs[0], segs[-1]
+                d0 = (round(a1[0] - a0[0]), round(a1[1] - a0[1]))
+                d1 = (round(b1[0] - b0[0]), round(b1[1] - b0[1]))
+                same = (d0[0] * d1[0] > 0 and d0[1] == 0 == d1[1]) or (d0[1] * d1[1] > 0 and d0[0] == 0 == d1[0])
+                fork = outs[(e["src"], e["sx"], e["sy"])] > 1 or ins[(e["tgt"], e["ex"], e["ey"])] > 1
+                if same and not fork:
+                    out.append(f"{at}：Z 形绕线（出、入两段同向平行）；两端对不齐就挪块，或改成中点直连的斜线")
+                ln = abs(b1[0] - b0[0]) + abs(b1[1] - b0[1])
+                if e["tgt"] and 0 < ln < min_seg:
+                    out.append(f"{at}：箭头前最后一段只有 {ln:.0f}px，像钩子；让线从正对的方向进块")
+            for k, ((x0, y0), (x1, y1)) in enumerate(segs):
+                dx, dy = abs(x1 - x0), abs(y1 - y0)
+                if dx > .5 and dy > .5:
+                    out.append(f"{at}：折线里有斜段 ({x0:.0f},{y0:.0f})→({x1:.0f},{y1:.0f})；折线每段只能水平或竖直")
+                    continue
+                # 小台阶：夹在两段同向线中间的短段（竖-短横-竖 / 横-短竖-横）
+                if 0 < k < len(segs) - 1 and 0 < max(dx, dy) < min_seg:
+                    (a0, a1), (b0, b1) = segs[k - 1], segs[k + 1]
+                    va = abs(a1[0] - a0[0]) < .5
+                    vb = abs(b1[0] - b0[0]) < .5
+                    if va == vb:
+                        out.append(f"{at}：折线里有 {max(dx, dy):.0f}px 的小台阶；挪块对齐，别用短折角")
+        return list(dict.fromkeys(out))
 
     def _v(self, i, v, st, x, y, w, h):
         v = html.escape(v, quote=True)
@@ -416,7 +542,7 @@ def overall(f, lanes, seq_title, segs, blocks, tops, cap, cross=None, zoom_idx=-
         gy = dy + 640
         tx = cxs[ta] - lw / 2 + lw * ex
         f.edge(tgt=encs[ta], ex=ex, ey=1, start=(sx, ay), pts=[(sx, gy), (tx, gy)],
-               dashed=True, color=f.P["hl_stroke"], w=1.4)
+               dashed=True, color=f.P["hl_stroke"], w=1.4, kind="route")
     seq, segids = f.seq(X0, dy + 412, W1, 66, seq_title, segs, fs=11.5)
     for i, last in enumerate(lasts):
         f.edge(last, seq, sx=.5, sy=0, ex=round((cxs[i] - X0) / W1, 3), ey=1)
@@ -517,16 +643,16 @@ def parallel_block(f, in_label, fused, attn, mlp, cat, bus, top_note, cap, rect=
     ly = f.geo[last][1]
     a = f.box(cx - bw - 8, ly - 40 - bh, bw, bh, attn[0], "core", bold=True, sub=attn[1], fs=13)
     m = f.box(cx + 8, ly - 40 - bh, bw, bh, mlp[0], "ffn", sub=mlp[1], fs=13)
-    f.edge(last, a, sx=.3, sy=0, ex=.5, ey=1)
-    f.edge(last, m, sx=.7, sy=0, ex=.5, ey=1)
+    f.vline(last, a)   # 宽块分给两个窄块：竖直线落在窄块中心
+    f.vline(last, m)
     top = f.stack(cx, w, ly - 40 - bh - 40, [
         dict(label=cat[0], role="attn", h=40, key="cat", sub=cat[1], hl=cat[2]),
         dict(label="Gate", role="mod", h=26, key="g"),
         dict(kind="plus", key="p"),
         dict(label="下一层", role="io", h=26, key="out"),
     ], y_top=y + 90)
-    f.edge(a, top["cat"], sx=.5, sy=0, ex=.3, ey=1)
-    f.edge(m, top["cat"], sx=.5, sy=0, ex=.7, ey=1)
+    f.vline(a, top["cat"])
+    f.vline(m, top["cat"])
     f.residual(ids["in"], top["p"], cx - w / 2 - 16)
     mo = f.box(cx - w / 2 - 94, y + ph - 40, 150, 28, bus[0], "mod", hl=bus[1], fs=11)
     f.bus(mo, [ids["m1"], top["g"]], cx - w / 2 - 34)
