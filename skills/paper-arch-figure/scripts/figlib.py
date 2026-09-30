@@ -389,7 +389,7 @@ def overall(f, lanes, seq_title, segs, blocks, tops, cap, cross=None, zoom_idx=-
     g = 12
     lw = (W1 - g * (n - 1)) / n
     cxs = [X0 + i * (lw + g) + lw / 2 for i in range(n)]
-    lasts, inps = [], []
+    lasts, inps, encs = [], [], []
     for i, ln in enumerate(lanes):
         x = cxs[i] - lw / 2
         fs0 = 13 if n < 4 else 12
@@ -405,11 +405,18 @@ def overall(f, lanes, seq_title, segs, blocks, tops, cap, cross=None, zoom_idx=-
             last = c
         lasts.append(last)
         inps.append(a)
+        encs.append(b)
     if cross:  # (from_lane, to_lane) 参考图也喂给文本编码器，蓝色虚线
         fa, ta = cross
+        # 直角走线：从输入块顶边靠近目标一侧出发，在输入行和编码器行之间的空隙里横走，再竖直进目标编码器底边
         ax, ay, aw, ah = f.geo[inps[fa]]
-        f.edge(tgt=lasts[ta] if False else None, start=(ax + 10, ay), end=(cxs[ta] + lw / 2 - 2, dy + 604),
-               pts=[(ax + 10, dy + 640)], dashed=True, color=f.P["hl_stroke"], w=1.4)
+        toward = 1 if ta > fa else -1
+        sx = ax + aw / 2 + toward * aw * 0.38
+        ex = round(0.5 - toward * 0.38, 3)
+        gy = dy + 640
+        tx = cxs[ta] - lw / 2 + lw * ex
+        f.edge(tgt=encs[ta], ex=ex, ey=1, start=(sx, ay), pts=[(sx, gy), (tx, gy)],
+               dashed=True, color=f.P["hl_stroke"], w=1.4)
     seq, segids = f.seq(X0, dy + 412, W1, 66, seq_title, segs, fs=11.5)
     for i, last in enumerate(lasts):
         f.edge(last, seq, sx=.5, sy=0, ex=round((cxs[i] - X0) / W1, 3), ey=1)
