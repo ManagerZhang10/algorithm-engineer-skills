@@ -1,6 +1,6 @@
 ---
 name: kelip-slide
-description: 用单文件 HTML 做讲解幻灯片——1920×1080，苹果 keynote 风（浅灰底 + 黑字 + 单一强调色、一页一张大图、文字少、页不排满），Chrome 双击打开、键盘翻页、离线可用，适合录屏讲解和技术分享。自带可直接复制的模板（15 种页型）、自绘 SVG 规范、素材处理命令和渲染自查回路。任何涉及做/改这种 HTML deck / slides / 讲解 PPT / 分享页面的请求都用它——包括只说「做个 deck」「这页太满了」「图太小」「加两页」「换个配色」的时候。不用于 PPTX / Marp / Google Slides。
+description: 用单文件 HTML 做讲解幻灯片——1920×1080，苹果 keynote 风（浅灰底 + 黑字 + 单一强调色、一页一张大图、文字少、页不排满），Chrome 双击打开、键盘翻页、离线可用，适合录屏讲解和技术分享。自带可直接复制的模板（15 种页型）、自绘 SVG 规范、素材处理命令和渲染自查回路。任何涉及做/改这种 HTML deck / slides / 讲解 PPT / 分享页面的请求都用它——包括只说「做个 deck」「这页太满了」「图太小」「加两页」「换个配色」的时候。用户要「deck / 讲解 / 汇报材料 / 分享页」时一律走本 skill 出单文件 HTML，不要做成 Claude Artifact。不用于 PPTX / Marp / Google Slides。
 ---
 
 # 单文件 HTML 讲解 deck
@@ -18,7 +18,7 @@ description: 用单文件 HTML 做讲解幻灯片——1920×1080，苹果 keyno
 ```bash
 mkdir -p <项目>/deck/media && cd <项目>/deck
 cp ~/.claude/skills/kelip-slide/assets/deck-template.html deck.html
-cp ~/.claude/skills/kelip-slide/assets/render_preview.py ~/.claude/skills/kelip-slide/assets/check_arrows.py .
+cp ~/.claude/skills/kelip-slide/assets/{render_pages.sh,render_preview.py,check_arrows.py} .
 ```
 
 模板里每种页型都有一个填好的示例页（按注释编号找，长什么样见 `assets/page-types.png`）。
@@ -81,7 +81,7 @@ talk      讲稿块，每个内容页必填，2–4 句                24px 灰�
   `<span class="hb|ho|hg|hp">`（蓝 / 橙 / 绿 / 紫），一段逻辑一种颜色，连续几行同色；
   不解读的行不加色，跳过的行用 `<span class="c"># ... 同样拆头   (B, 24, N, 64)</span>` 一行带过，形状写在注释尾巴上。
 - **右边 `.notes`**：一张 `.note.b|o|g|p` 对应一种颜色，`.h` 一句标题（这段做了什么），`.d` 一两句解释，
-  行内 `<code>` 写变量名和形状。
+  行内 `<code>` 写变量名和形状。颜色靠卡片左边色条对应，`.h` 不写「蓝：」「橙：」这类颜色名前缀。
 - **顺序对齐是硬约束**：色块在代码里从上到下第一次出现的顺序，必须等于右边卡片从上到下的顺序，
   颜色固定按 蓝 → 橙 → 绿 → 紫 的次序用。读者视线从左边一段扫到右边同色卡再回来，不需要找。
   一段代码后面又回到前面的颜色（比如紫之后再来一段蓝）就说明分段不对，拆成两页。
@@ -104,9 +104,14 @@ talk      讲稿块，每个内容页必填，2–4 句                24px 灰�
   讲稿超过 4 句说明这页塞了两个点，拆页。
 - 验收：把 kicker + 标题 + sub + talk 单独读一遍，不看图也知道这页在说什么，才算过。
 
-## 自查回路（这一步别跳）
+## 自查回路（这一步别跳，但只看改过的页）
 
-有自绘 SVG 的 deck 先跑箭头检查，报 ✗ 的全部改掉再截图：
+**默认只截改过的页，不整本渲染。** 整本 deck 反复开 headless Chrome 会把本机 CPU 打满、卡死机器。
+用户报问题时会点名是哪页、哪张图：**只改那一页**，不顺手重生成、重截无关页。
+**改页从本地源改**：直接改 `deck.html` 里那一页的结构和 `说明.md` / 项目里的结构化数据，
+不要截图再按图反推怎么改；截图只用来验收改完的结果。
+
+有自绘 SVG 的先跑箭头检查（不开浏览器，很便宜），报 ✗ 的全部改掉再截图：
 
 ```bash
 python3 check_arrows.py deck.html
@@ -115,17 +120,30 @@ python3 check_arrows.py deck.html
 它按浏览器实际排版量每根带箭头的线：头部悬空 / 扎进块里 / 打偏 / 穿过别的块或文字报 ✗，
 没对准块的中线报 △（多根箭头扇入扇出时的错开不报）。△ 逐条看，是故意的就留着。
 
+**改完页后**，只截这几页，逐页串行：
+
+```bash
+./render_pages.sh 57 58 59      # → /tmp/deck-pages/slide-57.png ...
+```
+
+然后用 Read **亲自看每一张**：图是不是顶到卡边 / 白卡是不是空了一半 / 表格有没有挤成一团 /
+标题有没有压住图 / 动画页是不是停在第 1 步。有问题改完只重截这一页。
+只改了一张图（PNG 素材）时，不用截页，用 PIL 裁出那张图看就够。
+**改过的页没看过渲染图不算做完。**
+
+**整本渲染**只在两种情况用：新 deck 第一次搭完，或用户明确要求全量检查。
+即便如此也只跑**一次、前台跑**，不放后台，一个没跑完不开第二个：
+
 ```bash
 python3 render_preview.py deck.html <页数> /tmp/deck-render 1 \
   && cp /tmp/deck-render/contact.png 预览-全部页面.png
 ```
 
-headless Chrome 逐页截 1920×1080，再拼成 4 列缩略图。**然后亲自看这张 contact.png**
-（用 Read 打开），一页一页对：图是不是顶到卡边 / 白卡是不是空了一半 / 表格有没有挤成一团 /
-标题有没有压住图 / 动画页是不是停在第 1 步。有问题改完重跑，单页放大看
-`/tmp/deck-render/slide-NN.png`。**没看过渲染图不算做完。**
+它逐页截 1920×1080 再拼成 4 列缩略图，Read 打开 contact.png 一页页对，单页放大看
+`/tmp/deck-render/slide-NN.png`。
 
-需要 `PIL`（`pip install pillow`）和装在默认位置的 Google Chrome；Chrome 路径不同就改脚本第 3 行。
+两个脚本都要装在默认位置的 Google Chrome（路径不同用 `CHROME=/path/to/chrome` 指定），
+`render_preview.py` 另需 `PIL`（`pip install pillow`）。
 
 ## 内容怎么排（建议，按需推翻）
 
@@ -141,6 +159,16 @@ headless Chrome 逐页截 1920×1080，再拼成 4 列缩略图。**然后亲自
 - 出处写进 kicker（`· 论文图 2`、`· 官方文档`、`· 2026-09-22 查`）。想要右下角出处小字，
   `references/customize.md` 里有现成 CSS。
 - 估读的数字标 `≈`。
+- **多用真实图、多放 case**：能放真实输入输出、论文原图、实验截图的地方，不用示意图或文字描述代替；
+  讲方法时至少给一个具体 case，一页一个 case 放不下就用 `.grid4` 或拆页。
+
+### 素材与用词（硬规则，不是建议）
+
+- **截论文原图时，标题要写明模型名**（如 `Qwen-Image-Edit · 图 3`），不能只写「论文图」。
+  放进页前先对照原文核对：截的确实是这篇、这张图（图号、标题、坐标轴对得上），不要截成相邻的图或别的论文。
+- **结构图、流程图里不写大段文字**：块内只放短标签（一个词或短语），解释放 `.sub` 和 `.talk`。
+- **汇报材料里不用没定义过的缩写**：内部代号、实验组名、指标缩写第一次出现时写全称或一句话定义，
+  不能定义就改用直白的说法。
 
 ## 交付物
 
@@ -148,7 +176,8 @@ headless Chrome 逐页截 1920×1080，再拼成 4 列缩略图。**然后亲自
 deck/
   deck.html            单文件，所有 CSS/JS 内联
   media/               图片、视频，全部本地化（deck 里不引外链）
-  render_preview.py    渲染自查
+  render_pages.sh      单页截图自查
+  render_preview.py    整本渲染（首次搭完用）
   check_arrows.py      箭头检查
   说明.md              页码对应表 + 自绘页画了什么 + 素材来源 + 重跑命令（讲稿不放这里，讲稿在页上的 .talk）
   预览-全部页面.png     contact sheet
