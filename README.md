@@ -37,7 +37,7 @@
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
 | 6 | [pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check) ↗ | 让多条「模型 x 通道」画同一张鹈鹕骑自行车 SVG 并出并排看板，同时量出 input token 注入与思考 token 抑制 | 怀疑 API 中转层降级、偷塞隐藏 system prompt 或关掉思考；横评几家模型的出图能力 | **住在独立仓库**，装法见该仓库 README |
-| 7 | [edit-drift-eval](skills/edit-drift-eval/SKILL.md) | 图像编辑模型多轮漂移评测：同一张图、同一串 prompt，各模型在自己上一步的结果上连改 K 步，量「背景 Drift」（远处背景与原图的平均像素差），出 N 栏并排对比视频（上 prompt、中出图、下 Drift 数值与曲线）；记录每家实际请求参数，内容审核拦截单独标注 | 多轮编辑会不会越改越偏、几家编辑模型并排对比视频、加一家模型跑 drift | 脚本在 `scripts/`（Python 标准库 + numpy + Pillow + ffmpeg；FLUX 3 / Ideogram 4.5 / GPT Image 2.5 走 fal，Nano Banana 2.1 走 Gemini API） |
+| 7 | [edit-drift-eval](skills/edit-drift-eval/SKILL.md) | 图像编辑模型多轮漂移评测：同一张图、同一串 prompt，各模型在自己上一步的结果上连改 K 步，量「背景漂移」（Gemini 框出修改目标，框外区域的纹理细节和原图对不上的程度），出 N 栏并排对比视频（上步数与修改意图、中出图、下背景漂移数值与曲线）；记录每家实际请求参数，内容审核拦截单独标注 | 多轮编辑会不会越改越偏、几家编辑模型并排对比视频、加一家模型跑 drift | 脚本在 `scripts/`（Python 标准库 + numpy + Pillow + ffmpeg；FLUX 3 / Ideogram 4.5 / GPT Image 2.5 走 fal，Nano Banana 2.1 走 Gemini API） |
 
 ### 思考
 

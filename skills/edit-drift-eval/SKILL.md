@@ -1,11 +1,11 @@
 ---
 name: edit-drift-eval
-description: 图像编辑模型多轮漂移评测：同一张图、同一串 prompt，让 N 个编辑模型（FLUX 3 / Ideogram 4.5 / GPT Image 2.5 sunburst / Nano Banana 2.1，可加）各自在自己上一步的输出上连续改 K 步，量「背景 Drift」（远处背景与原图的平均像素差），出 N 栏并排对比视频。用户说「多轮编辑漂移」「连续改 30 步看会不会糊/偏色」「几家编辑模型并排视频」「加一家模型跑 drift」「用已有输出重出 drift 视频」时用。不用于单步编辑质量评测、BBox/mask 保持度打分（那是 image-edit-api-eval），也不用于盲测。
+description: 图像编辑模型多轮漂移评测：同一张图、同一串 prompt，让 N 个编辑模型（FLUX 3 / Ideogram 4.5 / GPT Image 2.5 sunburst / Nano Banana 2.1，可加）各自在自己上一步的输出上连续改 K 步，量「背景漂移」（Gemini 框出修改目标，框外区域的纹理细节与原图对不上的程度，0–100），出 N 栏并排对比视频。用户说「多轮编辑漂移」「连续改 30 步看会不会糊/偏色」「几家编辑模型并排视频」「加一家模型跑 drift」「用已有输出重出 drift 视频」时用。不用于单步编辑质量评测、BBox/mask 保持度打分（那是 image-edit-api-eval），也不用于盲测。
 ---
 
 # edit-drift-eval
 
-一句话：每个模型都拿自己上一步的结果接着改，看改到第 30 步时没让它动的背景还像不像原图。
+一句话：每个模型都拿自己上一步的结果接着改，看改到第 30 步时没让它动的地方还像不像原图。
 
 能力全在 `edit-drift`（`~/.local/bin/edit-drift` → 本 skill 的 `scripts/edit_drift.py`）。本文件只写判断。
 
@@ -13,13 +13,13 @@ description: 图像编辑模型多轮漂移评测：同一张图、同一串 pro
 edit-drift models                                   # 已有适配器、渠道、单步估价
 edit-drift run    <wd>/chains.json --budget 20 --dry-run   # 先看计划和估价，不花钱
 edit-drift run    <wd>/chains.json --budget 20      # 跑链（付费），可中断续跑
-edit-drift score  <wd>/chains.json                  # patches.json / drift.json / manifest.json
+edit-drift score  <wd>/chains.json                  # bboxes.json / drift.json（背景漂移）/ drift_mae.json / manifest.json
 edit-drift render <wd>/chains.json                  # <wd>/video/<chain>.mp4 + all.mp4
 ```
 
 `run` 是付费动作：先 `--dry-run` 把估价告诉用户，预算没说就问。`score` / `render` 不调 API。
 
-准备：`FAL_KEY`（FLUX / Ideogram / GPT）和 `GEMINI_API_KEY`、`GEMINI_BASE_URL`（NB2.1）放环境变量，或写进一个 dotenv 文件并用 `EDIT_DRIFT_ENV_FILE` 指过去；ffmpeg 从 `FFMPEG` 或 PATH 找；字体默认用 macOS 自带的 Helvetica Neue 和冬青黑体。
+准备：`FAL_KEY`（FLUX / Ideogram / GPT）和 `GEMINI_API_KEY`、`GEMINI_BASE_URL`（NB2.1，以及 `score` 用 Gemini 框修改目标；模型可用 `EDIT_DRIFT_BBOX_MODEL` 换，默认 gemini-3.8-flash）放环境变量，或写进一个 dotenv 文件并用 `EDIT_DRIFT_ENV_FILE` 指过去；ffmpeg 从 `FFMPEG` 或 PATH 找；字体默认用 macOS 自带的 Helvetica Neue 和冬青黑体。
 
 ## chains.json 怎么写
 
@@ -45,15 +45,14 @@ edit-drift render <wd>/chains.json                  # <wd>/video/<chain>.mp4 + a
               "log": "/abs/round-02-gpt25/log.jsonl", "log_chain": "{chain}-gpt25"}}
   ```
   `log` 用来识别「被审核拦截」；可加 `date` 覆盖按文件时间推断的跑批日期。
-- 可选 `labels`（栏标题）、`patches`（手动指定背景区域，同 `--patches`）。
+- 可选 `labels`（栏标题）、`bboxes`（手动指定每条链的修改目标框，`{"<chain>": [x0, y0, x1, y1]}`，0–1000 归一化，优先于 Gemini）、`credit`（视频底部加一条标签，比如评测工具名；对外发布时别放网址，平台可能按站外导流处理）、`patches`（旧口径 3 块背景区域）。
 
-## 背景 Drift：定义与盲区
+## 背景漂移：定义与盲区
 
-- 每张图自动选 3 块 96×96 背景区域（整图 1024 时；其他尺寸按比例缩放）：离**所有模型第 1 步编辑区域的并集**最远，两两中心距 ≥ 360 px。第 1 步整图都变了的模型（如 NB2.1 整图重画）不参与定位。
-- `drift_k = 3 块区域内 |x_k − x_0| 的平均（RGB 0–255）`，**始终与原图比**，不和上一步比。
-- 选区随参与模型而变；要和以前的结果直接比，就用 `--patches` 传旧的 `patches.json`。出报告前人工看一眼这 3 块是不是确实是地板/树/墙。
-- **盲区**：只量远处背景，量不到编辑区旁边的局部损伤。例：FLUX 3 换衣服链在贴回圈内出现网格噪点，Drift 仍是 0。结论里写 Drift 时要带上这句，必要时补局部截图。
-- 颜色档：< 5 绿（肉眼看不出），< 20 黄，其余红。
+- **修改目标框**：`score` 把每条链第 1 条指令和原图发给 Gemini，让它框出指令允许改动的部位（比如「右边男人的外套」），存进 `bboxes.json`，每条链只框一次。框四周再放宽 48 px（1024 时），框外全部参与打分——包括旁边的人、被改那人的其他部位。出报告前把框画出来人工看一眼，框错就在 chains.json 的 `bboxes` 里手动改。
+- **背景漂移** `= 100 × (1 − corr(|∇x_k|, |∇x_0|))`，只算框外像素，截到 0–100：框外的边缘和纹理还和原图对得上多少。0 = 一致，100 = 原来的细节全没了。**始终与原图比**。
+- 为什么不用平均像素差：GPT Image 2.5 多轮后背景碎成马赛克，但平均颜色变化不大，像素差把它判得比 NB2.1 轻，和肉眼相反（2026-10 两组 8 条链里 0/8 对）；纹理口径 8/8 与肉眼一致。旧口径仍写在 `drift_mae.json` 里供对照。
+- **盲区**：只看框外；整张图均匀调暗、纹理不坏时分数偏低；框内被改坏（比如 FLUX 3 贴回圈里的网格噪点、人脸崩坏）不计分。结论里要带上这句，必要时补局部截图。
 
 ## 公平性检查清单（manifest.json 要能回答，交付时写明未对齐项）
 
@@ -79,8 +78,8 @@ edit-drift render <wd>/chains.json                  # <wd>/video/<chain>.mp4 + a
 
 ## 视频版式（默认值不要随手改）
 
-1920×1080；顶部步数 + prompt；中间 N 栏出图（不画测量框）；每栏下方「背景 Drift（与原图比）」大数字 + 累积曲线；底部一行中文解释。每步 0.25 秒，原图帧 0.5 秒、末帧 0.5 秒（段间约 1 秒停顿），`all.mp4` 为合集。3 栏、4 栏都已验证；5 栏以上能排但偏挤。
+1920×1080 浅色底；顶部圆角条：左边步数（如 15 / 30），右边修改意图（prompt 去掉统一后缀）；中间 N 张圆角卡片，左上角彩色模型标签，卡片下方黑色底栏写「背景漂移」、左边累积趋势线、右边大数字（不画框）；可选 `credit` 标签；底部一行中文解释。每步 0.25 秒，原图帧 0.5 秒、末帧 0.5 秒（段间约 1 秒停顿），`all.mp4` 为合集。3 栏、4 栏都已验证；5 栏以上能排但偏挤。
 
 ## 交付
 
-给用户：工作目录绝对路径、`video/all.mp4`、`drift.json` 里第 1 / 10 / 30 步的表、`manifest.json` 里的未对齐项和拦截情况，以及 Drift 盲区那句话。密钥只从环境变量或 `EDIT_DRIFT_ENV_FILE` 指向的 dotenv 文件读，任何产物里都不能出现。
+给用户：工作目录绝对路径、`video/all.mp4`、`drift.json` 里第 1 / 10 / 30 步的表、`manifest.json` 里的未对齐项和拦截情况，以及背景漂移盲区那句话。密钥只从环境变量或 `EDIT_DRIFT_ENV_FILE` 指向的 dotenv 文件读，任何产物里都不能出现。

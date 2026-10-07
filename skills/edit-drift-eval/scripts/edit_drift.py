@@ -492,10 +492,90 @@ def pick_patches(cfg, img):
 
 
 def drift_series(frames, boxes):
+    """Legacy reading: mean |x_k - x_0| over the 3 patches (0-255). Kept in drift_mae.json for reference."""
     x0 = rgb(frames[0]); sz = (x0.shape[1], x0.shape[0]); out = []
     for p in frames[1:]:
         xk = rgb(p, sz)
         out.append(round(float(np.mean([np.abs(xk[y0:y1, x0_:x1] - x0[y0:y1, x0_:x1]).mean() for x0_, y0, x1, y1 in boxes])), 1))
+    return out
+
+
+BBOX_MODEL = os.environ.get("EDIT_DRIFT_BBOX_MODEL", "gemini-3.8-flash")
+BBOX_PAD = 48  # px at 1024: spill-over allowance around the target box
+BBOX_Q = ("An image-editing instruction will be applied to this photo:\n\"{instr}\"\n"
+          "Return the tight bounding box of the region this instruction is allowed to change (only the target object, "
+          "e.g. that person's jacket or hair), as JSON {{\"box_2d\": [ymin, xmin, ymax, xmax], \"label\": \"...\"}} "
+          "with coordinates normalized to 0-1000.")
+
+
+def gemini_bbox(png_path, instr):
+    """Ask a Gemini VLM for the target region of the edit on the ORIGINAL image. Returns [x0, y0, x1, y1] in 0-1000."""
+    raw = pathlib.Path(png_path).read_bytes()
+    body = {"contents": [{"parts": [{"inline_data": {"mime_type": "image/png", "data": base64.b64encode(raw).decode()}},
+                                    {"text": BBOX_Q.format(instr=instr)}]}],
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}
+    url = f"{secret('GEMINI_BASE_URL').rstrip('/')}/models/{BBOX_MODEL}:generateContent"
+    hdr = {"Content-Type": "application/json", "x-goog-api-key": secret("GEMINI_API_KEY")}
+    err = None
+    for att in range(1, 5):
+        try:
+            st, d = http(url, hdr, body, timeout=300)
+            if st < 300:
+                j = json.loads(d["candidates"][0]["content"]["parts"][-1]["text"])
+                j = j[0] if isinstance(j, list) else j
+                y0, x0, y1, x1 = j["box_2d"]
+                return [int(x0), int(y0), int(x1), int(y1)], j.get("label", "")
+            err = f"{st}: {str(d)[:200]}"
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"[:200]
+        time.sleep(5 * att)
+    raise SystemExit(f"bbox failed for {png_path}: {err}")
+
+
+def chain_bboxes(cfg):
+    """Target box per chain (0-1000, x0 y0 x1 y1): chains.json "bboxes" > cached bboxes.json > Gemini on the original."""
+    path = cfg.wd / "bboxes.json"
+    cache = json.loads(path.read_text()) if path.exists() else {}
+    cache.update(cfg.raw.get("bboxes", {}))
+    for ch in cfg.chains:
+        if ch["id"] in cache:
+            continue
+        src = next((cfg.frames(ch, m)[0] for m in cfg.models if cfg.frames(ch, m)), None)
+        instr = ch["prompts"][0].replace(cfg.suffix, "").strip()
+        box, label = gemini_bbox(src, instr)
+        cache[ch["id"]] = {"box": box, "label": label, "instruction": instr, "model": BBOX_MODEL}
+        print(f"[bbox] {ch['id']}: {box} {label}", flush=True)
+    path.write_text(json.dumps(cache, indent=1, ensure_ascii=False))
+    return {k: (v["box"] if isinstance(v, dict) else v) for k, v in cache.items()}
+
+
+def outside_mask(shape, box, pad=BBOX_PAD):
+    """True outside the padded target box: everything the instruction did not ask to change (incl. other people)."""
+    h, w = shape[:2]; p = round(pad * w / 1024)
+    x0, y0, x1, y1 = box
+    m = np.ones((h, w), bool)
+    m[max(0, int(y0 * h / 1000) - p):min(h, int(y1 * h / 1000) + p), max(0, int(x0 * w / 1000) - p):min(w, int(x1 * w / 1000) + p)] = False
+    return m
+
+
+def grad_mag(x):
+    g = x.astype(np.float64) @ np.array([0.299, 0.587, 0.114])
+    gx = np.zeros_like(g); gy = np.zeros_like(g)
+    gx[:, 1:-1] = g[:, 2:] - g[:, :-2]; gy[1:-1] = g[2:] - g[:-2]
+    return np.hypot(gx, gy)
+
+
+def texture_series(frames, mask):
+    """背景漂移 (default score): 100 * (1 - corr(|grad x_k|, |grad x_0|)) outside the target bbox, clipped to 0-100.
+    0 = edges and textures identical to the original; ~100 = none of the original detail is left."""
+    x0 = rgb(frames[0]); sz = (x0.shape[1], x0.shape[0]); G0 = grad_mag(x0)[mask]; out = []
+    for p in frames[1:]:
+        Gk = grad_mag(rgb(p, sz))[mask]
+        if G0.std() < 1e-9 or Gk.std() < 1e-9:
+            c = 1.0 if np.allclose(G0, Gk) else 0.0
+        else:
+            c = float(np.corrcoef(G0, Gk)[0, 1])
+        out.append(round(min(100.0, max(0.0, 100 * (1 - c))), 1))
     return out
 
 
@@ -510,14 +590,20 @@ def cmd_score(cfg, a):
         if img not in patches:
             patches[img] = pick_patches(cfg, img)
     (cfg.wd / "patches.json").write_text(json.dumps(patches, indent=1))
-    drift = {}
+    boxes, masks = chain_bboxes(cfg), {}
+    for ch in cfg.chains:
+        f0 = next((cfg.frames(ch, m)[0] for m in cfg.models if cfg.frames(ch, m)), None)
+        masks[ch["id"]] = outside_mask(rgb(f0).shape, boxes[ch["id"]])
+    drift, mae = {}, {}
     for ch in cfg.chains:
         for m in cfg.models:
-            f = cfg.frames(ch, m)
-            drift[f"{ch['id']}-{m}"] = drift_series(f, patches[ch["image"]]) if f else []
+            f = cfg.frames(ch, m); key = f"{ch['id']}-{m}"
+            drift[key] = texture_series(f, masks[ch["id"]]) if f else []
+            mae[key] = drift_series(f, patches[ch["image"]]) if f else []
     (cfg.wd / "drift.json").write_text(json.dumps(drift, indent=1))
+    (cfg.wd / "drift_mae.json").write_text(json.dumps(mae, indent=1))
     write_manifest(cfg)
-    print("patches (x0,y0,x1,y1):", json.dumps(patches))
+    print("outside-bbox share:", {k: round(float(v.mean()), 2) for k, v in masks.items()})
     for ch in cfg.chains:
         for m in cfg.models:
             v = drift[f"{ch['id']}-{m}"]; st, last, stop = cfg.status(ch, m)
@@ -528,16 +614,21 @@ def cmd_score(cfg, a):
 
 # ----------------------------------------------------------------------------------------------------------- render
 W, H, FPS = 1920, 1080, 30
-BG, FG, GREY, PILL = (17, 17, 17), (245, 245, 245), (150, 150, 150), (38, 50, 66)
-GOOD, WARN, BAD = (80, 200, 120), (240, 180, 60), (235, 80, 80)
+BG, INK, MUTED, ACCENT, CARD_FOOT = (241, 239, 234), (24, 24, 24), (120, 120, 120), (150, 100, 30), (22, 22, 22)
+GOOD, WARN, BAD = (70, 200, 120), (245, 180, 60), (240, 90, 80)
+MODEL_COLOURS = {"nb21": (238, 102, 88), "flux3": (32, 150, 106), "ideogram45": (118, 92, 206), "gpt25-sunburst": (52, 62, 82)}
 HN = "/System/Library/Fonts/HelveticaNeue.ttc"
 ZH = "/System/Library/Fonts/Hiragino Sans GB.ttc"
-FOOT = ("每个模型都在自己上一步的结果上继续改。背景 Drift = 画面背景里 3 块与编辑无关的区域，和原图同位置相比的平均像素差（0–255）；"
-        "< 5 肉眼看不出 · ~10 轻微色偏 · 50+ 明显变样。")
+FOOT = ("每个模型都在自己上一步的结果上继续改，从不回到原图。背景漂移 = 修改目标框（Gemini 标注）之外的区域里，纹理和细节跟原图对不上的程度："
+        "0 = 和原图一致，100 = 原来的细节全没了。")
 
 
 def font(size, bold=False):
     return ImageFont.truetype(HN, size, index=1 if bold else 0)
+
+
+def zh(size, bold=False):
+    return ImageFont.truetype(ZH, size, index=1 if bold else 0)
 
 
 def colour(v):
@@ -556,63 +647,87 @@ def wrap(d, text, f, width):
 
 
 def layout(n):
-    gap = 30
-    P = min(600, (W - gap * (n + 1)) // n)
+    gap, margin = 22, 26
+    P = min(600, (W - 2 * margin - gap * (n - 1)) // n)
     x0 = (W - (n * P + (n - 1) * gap)) // 2
     return P, [x0 + i * (P + gap) for i in range(n)]
 
 
 class Fonts:
     def __init__(self, n):
-        big = 84 if n <= 4 else 64
-        self.small, self.step, self.prompt, self.pill = font(20, True), font(40, True), font(34), font(24, True)
-        self.foot, self.drift, self.dlab, self.stop = ImageFont.truetype(ZH, 20), font(big, True), ImageFont.truetype(ZH, 24), ImageFont.truetype(ZH, 26)
+        self.lab, self.step, self.of, self.prompt = zh(22, True), font(64, True), font(30), font(32, True)
+        self.pill, self.dlab, self.num, self.stop = font(30, True), zh(24, True), font(86 if n <= 3 else 72, True), zh(26)
+        self.foot, self.credit = zh(20), zh(22, True)
 
 
-def frame(k, n, prompt, cols, imgs, drifts, stops, ymax, F):
-    """cols: labels; imgs: PIL or None; drifts: series per col; stops: (kind, step) or None per col."""
+def rounded(img, r, top=True, bottom=True):
+    m = Image.new("L", img.size, 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, img.size[0] - 1, img.size[1] - 1 + (0 if bottom else r)], radius=r, fill=255)
+    if not top:
+        ImageDraw.Draw(m).rectangle([0, 0, img.size[0], r], fill=255)
+    return m
+
+
+def frame(k, n, prompt, cols, keys, imgs, drifts, stops, ymax, F, credit=""):
+    """cols: labels; keys: model keys (for colours); imgs: PIL or None; drifts: series per col; stops: (kind, step) or None."""
     P, XS = layout(len(cols))
     im = Image.new("RGB", (W, H), BG); d = ImageDraw.Draw(im)
     xL, xR = XS[0], XS[-1] + P
-    d.text((xL, 28), "EDIT", font=F.small, fill=GREY)
-    d.text((xL, 52), f"{k} / {n}" if k else "original", font=F.step, fill=FG)
-    lines = wrap(d, "Original photo — no edit yet." if k == 0 else f"“{prompt}”", F.prompt, xR - xL - 220)
-    y = 38
-    for line in lines[:3]:
-        d.text((xL + 220, y), line, font=F.prompt, fill=FG); y += 44
-    TY = 170
-    gx_off = 230 if P >= 420 else int(P * 0.5)
+    # top bar: step on the left, edit intent on the right
+    d.rounded_rectangle([xL, 22, xR, 158], radius=34, fill=(252, 251, 248), outline=INK, width=3)
+    d.text((xL + 36, 36), "步数", font=F.lab, fill=ACCENT)
+    num = f"{k:02d}"; d.text((xL + 36, 62), num, font=F.step, fill=INK)
+    d.text((xL + 42 + d.textlength(num, font=F.step), 90), f"/ {n}", font=F.of, fill=MUTED)
+    dx = xL + 250; d.line([dx, 44, dx, 136], fill=(200, 198, 192), width=2)
+    d.text((dx + 30, 36), "修改意图", font=F.lab, fill=ACCENT)
+    lines = wrap(d, "原图，还没开始改" if k == 0 else prompt, F.prompt if k else zh(32, True), xR - dx - 70)
+    if len(lines) > 2:
+        lines = lines[:2]; lines[1] = lines[1].rstrip(".,") + " …"
+    for j, line in enumerate(lines):
+        d.text((dx + 30, 66 + j * 40 + (20 if len(lines) == 1 else 0)), line, font=F.prompt if k else zh(32, True), fill=INK)
+    # cards
+    FH = 176
+    TY = 184 + max(0, (H - 60 - 184 - (P + FH)) // 2)
     for i, (lab, img) in enumerate(zip(cols, imgs)):
         x = XS[i]
+        card = Image.new("RGB", (P, P + FH), CARD_FOOT)
         if img is not None:
-            im.paste(img.resize((P, P), Image.LANCZOS), (x, TY))
+            card.paste(img.resize((P, P), Image.LANCZOS), (0, 0))
         else:
-            d.rectangle([x, TY, x + P, TY + P], fill=(30, 30, 30))
-            d.text((x + 24, TY + P // 2 - 14), "无数据", font=F.stop, fill=GREY)
-        w = d.textlength(lab, font=F.pill)
-        d.rounded_rectangle([x + 12, TY + 12, x + w + 40, TY + 54], radius=8, fill=PILL); d.text((x + 26, TY + 20), lab, font=F.pill, fill=FG)
+            ImageDraw.Draw(card).rectangle([0, 0, P, P], fill=(60, 60, 60))
+        cd = ImageDraw.Draw(card)
+        if img is None:
+            cd.text((24, P // 2 - 14), "无数据", font=F.stop, fill=(220, 220, 220))
         st = stops[i]
         if st and k >= st[1]:
             msg = f"被内容审核拦截（第 {st[1]} 步）" if st[0] == "blocked" else f"第 {st[1]} 步起无输出（{'调用失败' if st[0] == 'failed' else '未跑'}）"
-            ov = Image.new("RGBA", (P, 64), (150, 30, 30, 215) if st[0] == "blocked" else (60, 60, 60, 215))
-            im.paste(ov, (x, TY + P - 64), ov)
-            d.text((x + 18, TY + P - 50), msg, font=F.stop, fill=FG)
-        yb = TY + P + 16
-        d.text((x, yb), "背景 Drift（与原图比）", font=F.dlab, fill=GREY)
-        ser = drifts[i]; kk = min(k, len(ser))
-        v = ser[kk - 1] if kk else 0.0
-        d.text((x, yb + 40), f"{v:.1f}" if (ser or not k) else "–", font=F.drift, fill=colour(v) if kk else GREY)
-        gx0, gx1, gy0, gy1 = x + gx_off, x + P, yb + 30, yb + 150
-        d.line([gx0, gy1, gx1, gy1], fill=(70, 70, 70), width=1)
-        for ref in (5, 20):
-            if ref < ymax:
-                yy = gy1 - (gy1 - gy0) * ref / ymax; d.line([gx0, yy, gx1, yy], fill=(45, 45, 45), width=1)
+            ov = Image.new("RGBA", (P, 64), (170, 40, 40, 225) if st[0] == "blocked" else (70, 70, 70, 225))
+            card.paste(ov, (0, P - 64), ov); cd.text((18, P - 50), msg, font=F.stop, fill=(255, 255, 255))
+        # footer: label, sparkline, big number
+        ser = drifts[i]; kk = min(k, len(ser)); v = ser[kk - 1] if kk else 0.0
+        cd.text((22, P + 18), "背景漂移", font=F.dlab, fill=(235, 235, 235))
+        numtxt = f"{v:.1f}" if (ser or not k) else "–"
+        nw = cd.textlength(numtxt, font=F.num)
+        cd.text((P - 22 - nw, P + FH - 22 - F.num.size), numtxt, font=F.num, fill=(255, 255, 255))
+        gx0, gx1, gy0, gy1 = 22, max(60, P - 44 - nw), P + 62, P + FH - 26
+        cd.line([gx0, gy1, gx1, gy1], fill=(90, 90, 90), width=2)
         if kk:
             pts = [(gx0 + (gx1 - gx0) * j / (n - 1 if n > 1 else 1), gy1 - (gy1 - gy0) * min(ser[j], ymax) / ymax) for j in range(kk)]
             if len(pts) > 1:
-                d.line(pts, fill=colour(v), width=3)
-            d.ellipse([pts[-1][0] - 5, pts[-1][1] - 5, pts[-1][0] + 5, pts[-1][1] + 5], fill=colour(v))
-    d.text((xL, H - 36), FOOT, font=F.foot, fill=GREY)
+                cd.line(pts, fill=colour(v), width=4)
+            cd.ellipse([pts[-1][0] - 6, pts[-1][1] - 6, pts[-1][0] + 6, pts[-1][1] + 6], fill=colour(v))
+        else:
+            cd.ellipse([gx0 - 6, gy1 - 6, gx0 + 6, gy1 + 6], fill=MODEL_COLOURS.get(keys[i], (130, 130, 130)))
+        im.paste(card, (x, TY), rounded(card, 26))
+        # model pill
+        pc = MODEL_COLOURS.get(keys[i], (90, 90, 90)); w = d.textlength(lab, font=F.pill)
+        d.rounded_rectangle([x + 16, TY + 16, x + w + 52, TY + 70], radius=16, fill=pc)
+        d.text((x + 34, TY + 26), lab, font=F.pill, fill=(255, 255, 255))
+    if credit:  # optional line from chains.json "credit", e.g. the tool / repo used for this evaluation
+        cw = d.textlength(credit, font=F.credit)
+        d.rounded_rectangle([xL, H - 92, xL + cw + 36, H - 56], radius=18, fill=INK)
+        d.text((xL + 18, H - 87), credit, font=F.credit, fill=(255, 255, 255))
+    d.text((xL, H - 44), FOOT, font=F.foot, fill=MUTED)
     return im
 
 
@@ -624,14 +739,14 @@ def render_chain(cfg, ch, models, drift, vd, a):
     for m in models:
         st, last, stop = cfg.status(ch, m)
         stops.append((st, stop) if stop else None)
-    ymax = max(25.0, max((max(s) for s in series if s), default=0) * 1.05)
+    ymax = 100.0
     F = Fonts(len(models)); labels = [cfg.label(m) for m in models]
     tmp = vd / f"_frames_{ch['id']}"; shutil.rmtree(tmp, ignore_errors=True); tmp.mkdir(parents=True)
     lst = []
     for k in range(n + 1):
         imgs = [Image.open(f[min(k, len(f) - 1)]).convert("RGB") if f else None for f in frames]
         prompt = ch["prompts"][k - 1].replace(cfg.suffix, "").strip() if k else ""
-        frame(k, n, prompt, labels, imgs, series, stops, ymax, F).save(tmp / f"{k:04d}.png")
+        frame(k, n, prompt, labels, models, imgs, series, stops, ymax, F, cfg.raw.get("credit", "")).save(tmp / f"{k:04d}.png")
         hold = a.hold_start if k == 0 else (a.hold_end if k == n else a.sec)
         lst.append(f"file '{k:04d}.png'\nduration {hold}\n")
     lst.append(f"file '{n:04d}.png'\n")
