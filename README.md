@@ -36,6 +36,7 @@
 | # | 技能 | 做什么 | 什么时候触发 | 参考文件 |
 | --- | --- | --- | --- | --- |
 | 6 | [pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check) ↗ | 让多条「模型 x 通道」画同一张鹈鹕骑自行车 SVG 并出并排看板，同时量出 input token 注入与思考 token 抑制 | 怀疑 API 中转层降级、偷塞隐藏 system prompt 或关掉思考；横评几家模型的出图能力 | **住在独立仓库**，装法见该仓库 README |
+| 7 | [edit-drift-eval](skills/edit-drift-eval/SKILL.md) | 图像编辑模型多轮漂移评测：同一张图、同一串 prompt，各模型在自己上一步的结果上连改 K 步，量「背景 Drift」（远处背景与原图的平均像素差），出 N 栏并排对比视频（上 prompt、中出图、下 Drift 数值与曲线）；记录每家实际请求参数，内容审核拦截单独标注 | 多轮编辑会不会越改越偏、几家编辑模型并排对比视频、加一家模型跑 drift | 脚本在 `scripts/`（Python 标准库 + numpy + Pillow + ffmpeg；FLUX 3 / Ideogram 4.5 / GPT Image 2.5 走 fal，Nano Banana 2.1 走 Gemini API） |
 
 ### 思考
 
@@ -121,6 +122,7 @@ ln -s "$PWD/skills/decision-stress-testing" ~/.claude/skills/
 
 ```bash
 ln -s "$PWD/skills/paper-arch-figure/scripts/archfig.py" ~/.local/bin/archfig
+ln -s "$PWD/skills/edit-drift-eval/scripts/edit_drift.py" ~/.local/bin/edit-drift
 ```
 
 ## 来源与边界
@@ -139,6 +141,8 @@ ln -s "$PWD/skills/paper-arch-figure/scripts/archfig.py" ~/.local/bin/archfig
   「Generate an SVG of a pelican riding a bicycle」是 Simon Willison 2024 年起的公开非正式基准，
   沿用原版措辞以保持与公开对比图可比。脚本只用 Python 标准库；泳道配置含密钥，
   放在仓库外的 `~/.config/` 下，仓库内只有样例。
+- `edit-drift-eval` 由本人编写，从一次 FLUX 3 / Ideogram 4.5 / Nano Banana 2.1 多轮编辑对比实验的脚本里抽出来；
+  密钥只读环境变量或 `EDIT_DRIFT_ENV_FILE` 指向的 dotenv 文件，仓库里不含任何密钥和本机路径。
 - 周报的六模块字段名和架构规划的三色配色**保留为默认模板**，
   都可以整体替换成你所在组织的字段和品牌色；替换字段不影响其余写作标准。
 - 这些技能是按本人的工作场景打磨的，不是通用最佳实践。直接套用前先看它假设了什么。

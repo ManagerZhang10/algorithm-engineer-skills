@@ -1,0 +1,4 @@
+interface:
+  display_name: "Edit Drift Eval"
+  short_description: "Multi-turn image-edit background drift scoring and side-by-side video"
+  default_prompt: "Run or re-score a multi-turn edit drift comparison across image-edit models and render the N-column drift video."
