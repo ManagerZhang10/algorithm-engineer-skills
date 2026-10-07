@@ -24,6 +24,7 @@
 | 5 | [deck-portrait](skills/deck-portrait/SKILL.md) | 横屏 HTML deck 自动重排成竖屏 3:4 PNG：页面上的文字块改竖排，图整张保留原结构，图里字太小时追加带小地图的局部放大页，逐页量字号出自查报告 | 横屏 deck 手机上字太小、要导成小红书竖图 | 脚本在 `scripts/`（零依赖，Node ≥ 22 + Chrome） |
 | 6 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | 论文风神经网络架构图：任意结构（block 堆叠、编码器-解码器、多阶段流水线、小图），统一五色语义风格，默认论文式三段放大、主干自下而上，有金样板可对照；先从源码取证记行号，再用 Python spec 生成可编辑 draw.io，导出 SVG / PNG 并按显示宽度自查字号 | 画模型架构图、把 block 内部画出来、重画论文结构图 | [取证](skills/paper-arch-figure/references/fact-sourcing.md)、[版式 API](skills/paper-arch-figure/references/layouts.md)、[样式](skills/paper-arch-figure/references/style.md)、[经典图画法](skills/paper-arch-figure/references/classic-figures.md)；脚本在 `scripts/`（Python 标准库 + draw.io 桌面版） |
 | 7 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ScreenKite 录屏的 ffmpeg 剪辑流水线：麦克风静音去气口、文字锚点删卡壳重说段、逐字高亮 ASS 字幕、右下圆形摄像头、鼠标光标高亮与点击闪光；draft 草片 / final 与源同分辨率两档，每次出片附带字幕审阅 md 标出剪切接缝 | 剪 ScreenKite 录的讲解视频、去气口、加字幕、叠摄像头、高亮鼠标 | [转写术语修正](skills/lecture-video-cut/references/asr-term-fixes.md)；脚本在 `scripts/`（Python 标准库 + ffmpeg/libass） |
+| 8 | [xhs-43-deck](skills/xhs-43-deck/SKILL.md) | 小红书图文配图：4:3（1440×1080）单文件 HTML deck + 逐页 PNG，一行标题 + 占满的自绘图，公式离线按 LaTeX 效果排版，出图后按手机宽度量字号、查出界和压字，顺带数正文字数 | 小红书配图、小红书 keynote、4:3 图、手机上读的讲解图 | [脚本参考](skills/xhs-43-deck/references/api.md)；脚本在 `scripts/`（Python 标准库 + Chrome） |
 
 ### 内容提取
 
@@ -62,8 +63,17 @@
 
 ### 讲解幻灯片与竖屏导出
 
+三个出 deck 的技能按「给谁看、在哪看」分：
+
+| 技能 | 画幅 | 用途 |
+| --- | --- | --- |
+| `kelip-slide` | 16:9（1920×1080） | 讲解 deck：录屏、技术分享，有小标 / 副标 / 讲稿块 |
+| `deck-portrait` | 横屏 → 竖屏 3:4 | 把已经做好的 kelip-slide deck 重排成竖图，不改内容 |
+| `xhs-43-deck` | 4:3（1440×1080） | 从头做小红书配图：一行标题 + 大图，按手机宽度定字号，配一段正文 |
+
 - **kelip-slide** 负责做和改横屏 deck 本身，内容、页型、自绘图都在这里定。
 - **deck-portrait** 只接已经做好的 deck，不改内容，只按竖屏重排并导出 PNG；竖屏里某页不好看，先在它的 `portrait.json` 里微调，仍不行再回 kelip-slide 改原页。
+- **xhs-43-deck** 不接 kelip-slide 的 deck，是为小红书图文从头做：先定正文，再逐页出图。已有横屏 deck 只想换成手机能看的竖图，用 deck-portrait。
 - **paper-arch-figure** 只负责模型架构图这一种图，产出可编辑的 draw.io 和 SVG / PNG；图做好后作为素材放进 kelip-slide 的一图页。kelip-slide 自带的自绘 SVG 适合流程和示意，block 级的模型结构用这个。
 
 ### 小红书图文转写与实习汇报
@@ -125,6 +135,9 @@ ln -s "$PWD/skills/paper-arch-figure/scripts/archfig.py" ~/.local/bin/archfig
 ln -s "$PWD/skills/edit-drift-eval/scripts/edit_drift.py" ~/.local/bin/edit-drift
 ```
 
+`xhs-43-deck` 不需要进 PATH：`python3 skills/xhs-43-deck/scripts/xhs43.py new <目录>` 会把库复制进新 deck 目录，
+之后在那个目录里 `python3 build.py --png` 即可。
+
 ## 来源与边界
 
 - 两个写作技能（`weekly-review-authoring`、`architecture-plan-authoring`）由本人编写。
@@ -135,6 +148,8 @@ ln -s "$PWD/skills/edit-drift-eval/scripts/edit_drift.py" ~/.local/bin/edit-drif
 - `kelip-slide` 派生自 [skJack/kelip-slide](https://github.com/skJack/kelip-slide)（MIT，上游 `LICENSE` 原样保留在该目录）。
   本地加了箭头自动连线与穿块检查（已提回上游 PR #1）、去掉收尾页、点击不翻页，
   以及「代码解读页」页型；逐条改动见该目录 `UPSTREAM.md`。
+- `xhs-43-deck` 由本人编写，脚本从一套自己做过的小红书配图 deck 里抽出来泛化而成；
+  配色默认值沿用 kelip-slide 的 keynote 风（浅灰底 + 黑字 + 单一强调色），页面框架代码是重新写的。
 - `pelican-proxy-check` 由本人编写，**已拆成独立仓库**
   [ManagerZhang10/pelican-proxy-check](https://github.com/ManagerZhang10/pelican-proxy-check)，
   这里不再保留副本（一份代码两个地方维护迟早不同步）。所用题面

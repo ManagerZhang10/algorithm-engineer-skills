@@ -1,0 +1,7 @@
+interface:
+  display_name: "XHS 4:3 Deck"
+  short_description: "小红书图文配图：4:3 单文件 HTML deck + 逐页 PNG，离线公式排版、手机字号自查"
+  default_prompt: "使用 $xhs-43-deck 把这段讲解做成小红书 4:3 配图：先定文案，再逐页对齐画图想法，出图自查后打开给我看。"
+
+policy:
+  allow_implicit_invocation: true
