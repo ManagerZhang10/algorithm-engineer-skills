@@ -1,4 +1,4 @@
-# manager-zhang-skills 仓库约定
+# algorithm-engineer-skills 仓库约定
 
 > 适用范围：本仓库全部内容
 
