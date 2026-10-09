@@ -14,7 +14,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | [weekly-review-authoring](skills/weekly-review-authoring/SKILL.md) | 先建证据清单再写周报，把周报写成职业证据而不是活动流水账 | 写周报、整理本周进展、Review 周报草稿 | [写作标准](skills/weekly-review-authoring/references/weekly-review-standard.md) |
 | 2 | [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md) | 按讲述时长冻结正文预算，先串文字主线再用图压缩表达 | 架构规划、技术规划、方案汇报、路线提案 | [交付物模式](skills/architecture-plan-authoring/references/deliverable-modes.md)、[审查量表](skills/architecture-plan-authoring/references/review-rubric.md) |
-| 3 | [internship-reporting](skills/internship-reporting/SKILL.md) | 按五层框架将已有材料组织为实习 / 转正汇报 | 实习总结、转正汇报、晋升材料、45 分钟汇报模板 | [五层框架](skills/internship-reporting/references/five-level-reporting.md)、[45 分钟模板](skills/internship-reporting/references/45-minute-internship-report-template.md) |
+| 3 | [working-report](skills/working-report/SKILL.md) | 按五层框架把已有材料串成一个故事，组织为工作汇报 | 阶段述职、实习总结、转正汇报、晋升材料、45 分钟汇报模板 | [五层框架](skills/working-report/references/five-level-reporting.md)、[45 分钟模板](skills/working-report/references/45-minute-work-report-template.md) |
 
 ### 讲解幻灯片
 
@@ -59,7 +59,7 @@
   验收标准是「离职后这条能不能不重新考古就写进简历」。
 - **架构规划**面向听众。核心是一条能被口头复述的因果链，
   正文长度由有效讲述时长反推，验收标准是「讲述者能不能脱稿复述主线并回答质疑」。
-- **实习汇报**面向实习总结、转正或晋升场景。核心是把项目从工作交付逐步组织为方法、全局判断、角色定位和可信的增量价值；验收标准是「听众能说出共同主线、个人贡献和下一步」。
+- **工作汇报**面向阶段述职、实习总结、转正或晋升场景。核心是把项目从工作交付逐步组织为方法、全局判断、角色定位和可信的增量价值；验收标准是「听众能说出共同主线、个人贡献和下一步」。
 
 ### 讲解幻灯片与竖屏导出
 
@@ -76,10 +76,10 @@
 - **xhs-43-deck** 不接 kelip-slide 的 deck，是为小红书图文从头做：先定正文，再逐页出图。已有横屏 deck 只想换成手机能看的竖图，用 deck-portrait。
 - **paper-arch-figure** 只负责模型架构图这一种图，产出可编辑的 draw.io 和 SVG / PNG；图做好后作为素材放进 kelip-slide 的一图页。kelip-slide 自带的自绘 SVG 适合流程和示意，block 级的模型结构用这个。
 
-### 小红书图文转写与实习汇报
+### 小红书图文转写与工作汇报
 
 - **小红书图文转写**只负责忠实提取公开笔记的正文和图片文字，并标明来源与不确定处；它不改写观点，也不生成汇报。
-- **实习汇报**只接受已有的可编辑材料，负责形成汇报故事、五层诊断和模板；原始小红书图文应先由“小红书图文转写”转为材料，再交给它。
+- **工作汇报**只接受已有的可编辑材料，负责形成汇报故事、五层诊断和模板；原始小红书图文应先由“小红书图文转写”转为材料，再交给它。
 
 ### 五个思考技能
 

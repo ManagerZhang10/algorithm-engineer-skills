@@ -1,4 +1,0 @@
-interface:
-  display_name: "实习汇报"
-  short_description: "将实习材料组织成可讲述的汇报主线"
-  default_prompt: "Use $internship-reporting to turn my internship materials into a structured report."
