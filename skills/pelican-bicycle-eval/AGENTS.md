@@ -1,6 +1,6 @@
 # pelican-bicycle-eval
 
-> 本 Repo 的共享主规则。顶层 `/Users/yuzhang/ZhangYu/AGENTS.md` 的约定继续适用。
+> 本 Repo 的共享主规则。合集根目录的 `AGENTS.md` 约定继续适用。
 
 ## 这是个公开仓库
 
