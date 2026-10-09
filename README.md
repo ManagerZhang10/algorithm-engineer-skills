@@ -1,4 +1,4 @@
-# manager-zhang-skills
+# algorithm-engineer-skills
 
 个人 Agent Skill 仓库，沉淀反复用得上的写作、思考与协作技能。每个技能是一个自包含目录，
 放 `SKILL.md`（指令与元数据）加可选的 `references/`（按需加载的长参考）。
@@ -110,8 +110,8 @@
 技能目录直接软链或复制到 Agent 的技能目录即可，不需要构建步骤。
 
 ```bash
-git clone https://github.com/ManagerZhang10/manager-zhang-skills.git
-cd manager-zhang-skills
+git clone https://github.com/ManagerZhang10/algorithm-engineer-skills.git
+cd algorithm-engineer-skills
 
 # Claude Code（用户级）：按需挑，或者全装
 for s in skills/*/; do ln -s "$PWD/$s" ~/.claude/skills/; done

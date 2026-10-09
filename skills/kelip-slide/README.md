@@ -25,16 +25,16 @@ Copilot、任何能读文件改文件的）指一下这个目录，说「做一�
 **Claude Code**（装成 skill，会自动触发）：
 
 ```bash
-git clone https://github.com/ManagerZhang10/manager-zhang-skills.git
-ln -s "$PWD/manager-zhang-skills/skills/kelip-slide" ~/.claude/skills/kelip-slide
+git clone https://github.com/ManagerZhang10/algorithm-engineer-skills.git
+ln -s "$PWD/algorithm-engineer-skills/skills/kelip-slide" ~/.claude/skills/kelip-slide
 ```
 
 **其他 AI Agent**（Cursor / Codex / Copilot / 自己写的 agent）——clone 到项目里，
 让 agent 读 `SKILL.md` 就行：
 
 ```bash
-git clone https://github.com/ManagerZhang10/manager-zhang-skills.git
-cp -r manager-zhang-skills/skills/kelip-slide tools/kelip-slide
+git clone https://github.com/ManagerZhang10/algorithm-engineer-skills.git
+cp -r algorithm-engineer-skills/skills/kelip-slide tools/kelip-slide
 ```
 
 然后在项目的 `AGENTS.md` / `.cursorrules` / 系统提示里加一句：
