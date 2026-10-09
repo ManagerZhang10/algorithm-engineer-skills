@@ -1,7 +1,7 @@
 interface:
-  display_name: "Kelip Slide"
-  short_description: "用单文件 HTML 做 keynote 风讲解幻灯片：模板、自绘 SVG、代码解读页、渲染与箭头自查"
-  default_prompt: "使用 $kelip-slide 做一个讲 X 的 deck，排完渲染出来自查一遍再交付。"
+  display_name: "Tech Talk Deck"
+  short_description: "单文件 HTML 技术讲解 deck：暖纸底 + 赭橙强调，写页硬规则（先目的后做法、图先全出再高亮），模板、自绘 SVG、代码解读页、渲染与箭头自查"
+  default_prompt: "使用 $tech-talk-deck 做一个讲 X 的 deck，排完渲染出来自查一遍再交付。"
 
 policy:
   allow_implicit_invocation: true

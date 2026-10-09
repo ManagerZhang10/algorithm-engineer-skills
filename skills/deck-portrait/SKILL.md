@@ -1,6 +1,6 @@
 ---
 name: deck-portrait
-description: 把横屏 HTML 讲解 deck（1920×1080，kelip-slide 这类 keynote 风单文件 deck）自动重排成竖屏 3:4 的 PNG（默认 1080×1440），用于小红书图文、朋友圈、手机阅读。页面上的标题、表格、数字卡、代码等改成竖排；图（自绘 SVG、论文原图）整张保留原结构，图里字太小时在后面追加同一张图的局部放大页（带小地图）；溢出自动缩放，并逐页量出最小字号供自查。用户说「deck 转竖屏」「横屏字太小手机看不清」「把 slides 导成小红书图」「竖版 PNG」时用。不用于 PPTX / Keynote 原生文件，也不负责从零做 deck（那是 kelip-slide）。
+description: 把横屏 HTML 讲解 deck（1920×1080，tech-talk-deck 这类 keynote 风单文件 deck）自动重排成竖屏 3:4 的 PNG（默认 1080×1440），用于小红书图文、朋友圈、手机阅读。页面上的标题、表格、数字卡、代码等改成竖排；图（自绘 SVG、论文原图）整张保留原结构，图里字太小时在后面追加同一张图的局部放大页（带小地图）；溢出自动缩放，并逐页量出最小字号供自查。用户说「deck 转竖屏」「横屏字太小手机看不清」「把 slides 导成小红书图」「竖版 PNG」时用。不用于 PPTX / Keynote 原生文件，也不负责从零做 deck（那是 tech-talk-deck）。
 ---
 
 # 横屏 deck → 竖屏 PNG
@@ -53,7 +53,7 @@ node <本技能>/scripts/deck_portrait.mjs path/to/deck.html
 - **小字 p10 < 20px**：这一页 10% 的字小于 20px（1080 宽画布，≈ 手机上 7pt）。有放大页的总览页不报，
   放大页还报说明图太宽，两张放大页也不够——可以用 `"crops": 3`，或者接受。
 - **放大页的裁切位置**：看裁边有没有把关键的框或公式正好切在渐隐里；不理想就换 `crops` 张数，
-  或回 kelip-slide 调原图。
+  或回 tech-talk-deck 调原图。
 - **张数**：放大页会增加张数。小红书一篇的图片张数有上限（目前 18 张，以 App 为准），
   deck 页数本来就超的话，先和用户确认要发哪些页、哪些页要放大，再决定。
 - 过渡页（只有编号和两个字）在竖屏里基本是空页，发小红书时通常不选。
@@ -84,7 +84,7 @@ node <本技能>/scripts/deck_portrait.mjs path/to/deck.html
 
 ## 适用范围
 
-- 为 kelip-slide 模板写的：认 `.slide` / `.active`、`#stage`、`.fig` `.diagbox` `.tblwrap` 等类名，用它的键盘翻页。
+- 为 tech-talk-deck 模板写的：认 `.slide` / `.active`、`#stage`、`.fig` `.diagbox` `.tblwrap` 等类名，用它的键盘翻页。
   别的 HTML deck 只要每页是 `.slide`、当前页带 `.active`，竖排和截图也能跑，但放大页只认 `.diagbox > svg` 和 `.fig > img`。
 - 竖排规则在 `scripts/portrait.css`，放大页、溢出和字号测量在 `scripts/portrait.js`，驱动在 `scripts/deck_portrait.mjs`。
   想改竖屏的字号、边距，改 `portrait.css`；某个 deck 专属的调整写进它的 `portrait.json`，不改脚本。
