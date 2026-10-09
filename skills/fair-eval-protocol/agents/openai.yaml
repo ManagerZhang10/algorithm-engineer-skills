@@ -1,0 +1,7 @@
+interface:
+  display_name: "Fair Eval Protocol · 公平评测协议"
+  short_description: "多模型 / ckpt / 供应商对比前冻结输入、参数、指标和失败口径，只在交集上比"
+  default_prompt: "使用 $fair-eval-protocol 帮我在比较这几个模型之前定好评测协议：冻结输入清单、统一参数、算样本交集，并给出带每臂 N 的报告模板。"
+
+policy:
+  allow_implicit_invocation: true

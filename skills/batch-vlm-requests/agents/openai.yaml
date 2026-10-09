@@ -1,0 +1,4 @@
+interface:
+  display_name: "Batch VLM Requests"
+  short_description: "Inline-image batch requests to VLM APIs: freeze, estimate cost, run, collect by custom_id"
+  default_prompt: "Build frozen inline-base64 VLM requests for an image folder, estimate and calibrate cost on a small smoke run, then collect results by custom_id with empty/truncated/refusal outputs classified."

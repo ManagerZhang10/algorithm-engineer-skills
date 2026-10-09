@@ -1,0 +1,7 @@
+interface:
+  display_name: "Pelican Bicycle Eval · 鹈鹕测评"
+  short_description: "重复横评模型 SVG、稳定性和消耗，也可检查中转完整性"
+  default_prompt: "使用 $pelican-bicycle-eval 让两个模型各画三次鹈鹕骑自行车，并生成带 token 消耗的横评页。"
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paper Quick Read"
+  short_description: "5-10 minute guided reading of one paper with verifiable page citations"
+  default_prompt: "Extract this paper (arXiv ID, link or local PDF) into page-numbered text and figure-page images, read it, and write a Chinese guided reading in outline mode with [p.N] citations."
