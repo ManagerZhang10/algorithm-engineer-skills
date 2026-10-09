@@ -1,4 +1,4 @@
-# manager-zhang-skills 仓库约定
+# algorithm-engineer-skills 仓库约定
 
 > 适用范围：本仓库全部内容
 
@@ -27,7 +27,7 @@ skills/<skill-name>/
 
 新增或删除技能时同步改 `README.md` 的技能索引表和安装段落。
 表里一行一个技能，技能名指向 `SKILL.md`，参考文件单独成列。
-跨技能的分工说明写在 README 的「三个技能的分工」一节，不写进单个 `SKILL.md`。
+跨技能的分工说明写在 README 的「技能之间的分工」一节，不写进单个 `SKILL.md`。
 
 ## 四、公开仓库的脱敏纪律
 
