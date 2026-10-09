@@ -41,7 +41,7 @@
 | --- | --- | --- |
 | [weekly-review-authoring](skills/weekly-review-authoring/SKILL.md) | 先建证据清单再写周报，把周报写成职业证据而不是活动流水账 | 写周报、整理本周进展 |
 | [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md) | 按讲述时长冻结正文预算，先串文字主线再用图压缩表达 | 架构规划、技术方案汇报 |
-| [internship-reporting](skills/internship-reporting/SKILL.md) | 按五层框架把已有材料组织成实习 / 转正汇报 | 实习总结、转正、晋升材料 |
+| [working-report](skills/working-report/SKILL.md) | 按五层框架把已有材料串成一个故事，组织为工作汇报 | 阶段述职、实习总结、转正、晋升材料 |
 | [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | 把公开小红书笔记、长图或截图转成带来源边界的 Markdown | 提取笔记原文、OCR |
 
 ### 思考
@@ -74,7 +74,7 @@
 模型结构图用 `paper-arch-figure` 画好，作为素材放进 `tech-talk-deck` 的一图页。
 
 **写作：**周报面向自己和主管，验收标准是「这条能不能不考古就写进简历」；架构规划面向听众，
-验收标准是「讲述者能不能脱稿复述主线」；实习汇报面向转正和晋升，验收标准是「听众能说出主线、个人贡献和下一步」。
+验收标准是「讲述者能不能脱稿复述主线」；工作汇报面向述职、转正和晋升，验收标准是「听众能说出主线、个人贡献和下一步」。
 
 **思考：**按问题卡在哪一步选——说不清要问什么用 `question-clarifying`，不懂用 `unfamiliar-topic-learning`，
 想不出方案用 `problem-solving-lenses`，两个方案选不出来用 `decision-stress-testing`，
@@ -153,7 +153,7 @@ from tasks the author repeats at work, with the pitfalls written down as rules. 
 | [deck-portrait](skills/deck-portrait/SKILL.md) | Re-layout a 16:9 deck into 3:4 portrait PNGs for phones. |
 | [xhs-43-deck](skills/xhs-43-deck/SKILL.md) | 4:3 image-post decks for Xiaohongshu, sized for phone reading. |
 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ffmpeg pipeline for screen-recorded talks: silence removal, word-highlighted subtitles, webcam overlay. |
-| Writing: [weekly-review-authoring](skills/weekly-review-authoring/SKILL.md), [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md), [internship-reporting](skills/internship-reporting/SKILL.md), [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | Evidence-first weekly reviews, talk-length-budgeted architecture plans, internship / promotion reports, Xiaohongshu post extraction. |
+| Writing: [weekly-review-authoring](skills/weekly-review-authoring/SKILL.md), [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md), [working-report](skills/working-report/SKILL.md), [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | Evidence-first weekly reviews, talk-length-budgeted architecture plans, work / promotion reports, Xiaohongshu post extraction. |
 | Thinking: [question-clarifying](skills/question-clarifying/SKILL.md), [unfamiliar-topic-learning](skills/unfamiliar-topic-learning/SKILL.md), [problem-solving-lenses](skills/problem-solving-lenses/SKILL.md), [decision-stress-testing](skills/decision-stress-testing/SKILL.md), [self-understanding-interview](skills/self-understanding-interview/SKILL.md) | From a vague question to a decision: clarify, learn, reframe, stress-test, reflect. |
 
 ### Install
