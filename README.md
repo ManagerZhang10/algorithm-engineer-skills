@@ -54,6 +54,12 @@
 | [decision-stress-testing](skills/decision-stress-testing/SKILL.md) | 两个选项都论证到最强；推演失效时改用最小实验 | 两条路都有道理、拿不定主意 |
 | [self-understanding-interview](skills/self-understanding-interview/SKILL.md) | 深度访谈：找底层天赋，给三个五年版本和原型行动 | 考虑职业方向转变 |
 
+### 学习与记忆
+
+| 技能 | 做什么 | 什么时候用 |
+| --- | --- | --- |
+| [quiz-drill](skills/quiz-drill/SKILL.md) | 把任意本地知识库（Markdown / HTML / PDF / txt）出成选择题库：长文件按标题切成知识点，单选为主、夹少量多选，每道题过四关机器质检（结构、选项长度、带题干作答、遮题干盲猜）才入库；本地网页刷题、错题优先复习，按知识点出首答正确率和掌握度报告，给最弱的知识点自动加题。走任意 OpenAI 兼容接口 | 想把笔记、讲义、文档背下来；想知道自己哪些知识点还薄弱 |
+
 ## 技能之间的分工
 
 **评测类：**`fair-eval-protocol` 管「怎么比才公平」，是所有对比实验的前置；`batch-vlm-requests`
@@ -99,7 +105,7 @@ ln -s "$PWD/skills/fair-eval-protocol" ~/.claude/skills/
 ```
 
 项目级安装把链接放进 `<repo>/.claude/skills/`。带脚本的技能依赖写在各自 `SKILL.md` 里，
-多数只需要 Python 标准库；`paper-quick-read` 需要 `pymupdf`。
+多数只需要 Python 标准库；`paper-quick-read` 需要 `pymupdf`；`quiz-drill` 需要一个 OpenAI 兼容接口的密钥，读 PDF 时需要 `pypdf`。
 
 ## 配套工具与作者的其他作品
 
@@ -115,7 +121,7 @@ ln -s "$PWD/skills/fair-eval-protocol" ~/.claude/skills/
 
 - 作者本人编写：`fair-eval-protocol`、`batch-vlm-requests`、`paper-quick-read`、`pelican-bicycle-eval`、
   `edit-drift-eval`、`paper-arch-figure`、`deck-portrait`、`xhs-43-deck`、`lecture-video-cut`、
-  三个写作技能和 `xiaohongshu-content-extraction`。公开前做过脱敏：去掉了真实姓名、本机路径、
+  `quiz-drill`、三个写作技能和 `xiaohongshu-content-extraction`。公开前做过脱敏：去掉了真实姓名、本机路径、
   内部项目代号、存储桶和内网地址，方法论部分未删减。
 - `tech-talk-deck` 基于 [skJack/kelip-slide](https://github.com/skJack/kelip-slide)（MIT）改造，原名 kelip-slide。
   上游 `LICENSE` 原样保留在该目录，逐条改动见其 `UPSTREAM.md`。
@@ -154,6 +160,7 @@ from tasks the author repeats at work, with the pitfalls written down as rules. 
 | [xhs-43-deck](skills/xhs-43-deck/SKILL.md) | 4:3 image-post decks for Xiaohongshu, sized for phone reading. |
 | [lecture-video-cut](skills/lecture-video-cut/SKILL.md) | ffmpeg pipeline for screen-recorded talks: silence removal, word-highlighted subtitles, webcam overlay. |
 | Writing: [weekly-review-authoring](skills/weekly-review-authoring/SKILL.md), [architecture-plan-authoring](skills/architecture-plan-authoring/SKILL.md), [working-report](skills/working-report/SKILL.md), [xiaohongshu-content-extraction](skills/xiaohongshu-content-extraction/SKILL.md) | Evidence-first weekly reviews, talk-length-budgeted architecture plans, work / promotion reports, Xiaohongshu post extraction. |
+| [quiz-drill](skills/quiz-drill/SKILL.md) | Turn any local knowledge base (Markdown / HTML / PDF / txt) into a multiple-choice bank: long files split into topics by heading, each question passes four automated checks (structure, option length, answer-with-stem, blind guess without stem); drill in a local web page with spaced review of mistakes, get a per-topic weakness report, and auto-generate more questions for the weakest topics. Works with any OpenAI-compatible API; questions follow the source language, UI is Chinese. |
 | Thinking: [question-clarifying](skills/question-clarifying/SKILL.md), [unfamiliar-topic-learning](skills/unfamiliar-topic-learning/SKILL.md), [problem-solving-lenses](skills/problem-solving-lenses/SKILL.md), [decision-stress-testing](skills/decision-stress-testing/SKILL.md), [self-understanding-interview](skills/self-understanding-interview/SKILL.md) | From a vague question to a decision: clarify, learn, reframe, stress-test, reflect. |
 
 ### Install

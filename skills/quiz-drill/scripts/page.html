@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>刷题</title>
+<style>
+:root {
+  --bg: #f4efe6; --card: #fffdf8; --ink: #2a2520; --sub: #6f665c; --line: #e3dacb;
+  --accent: #b85c26; --accent-soft: #f3e1d2; --ok: #2f7d4f; --ok-soft: #dcefe2; --bad: #b8322a; --bad-soft: #f6dcd8;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1d1a17; --card: #26221e; --ink: #ece4d8; --sub: #a59a8c; --line: #3a342d;
+    --accent: #e08a50; --accent-soft: #3d2b1e; --ok: #6cc08f; --ok-soft: #1f3327; --bad: #ec7b70; --bad-soft: #3b2220; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.65 -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 960px; margin: 0 auto; padding: 12px 20px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.bar h1 { font-size: 18px; margin: 0; }
+.tabs { display: flex; gap: 4px; }
+.tabs button, .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 15px; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+.meta { color: var(--sub); font-size: 14px; margin-left: auto; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; color: var(--sub); font-size: 15px; }
+select { font: inherit; font-size: 15px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 420px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 26px 30px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--sub); margin-bottom: 10px; }
+.tag { background: var(--bg); border-radius: 6px; padding: 2px 8px; }
+.tag.multi { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.stem { font-size: 21px; font-weight: 600; line-height: 1.55; margin: 4px 0 20px; }
+.opt { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 12px 16px; margin: 0 0 10px; font: inherit; cursor: pointer; }
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt .k { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: 14px; color: var(--sub); }
+.opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.opt.sel .k { background: var(--accent); border-color: var(--accent); color: #fff; }
+.opt.right { border-color: var(--ok); background: var(--ok-soft); }
+.opt.right .k { background: var(--ok); border-color: var(--ok); color: #fff; }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt.wrong .k { background: var(--bad); border-color: var(--bad); color: #fff; }
+.opt .why { display: block; font-size: 14px; color: var(--sub); margin-top: 4px; }
+.opt:disabled { cursor: default; }
+.verdict { font-size: 18px; font-weight: 700; margin: 14px 0 6px; }
+.verdict.ok { color: var(--ok); } .verdict.bad { color: var(--bad); }
+.quote { border-left: 3px solid var(--accent); padding: 6px 12px; color: var(--sub); font-size: 15px; margin: 10px 0; }
+.src { font-size: 13px; color: var(--sub); word-break: break-all; }
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+.hint { font-size: 13px; color: var(--sub); margin-left: auto; }
+.linkbtn { background: none; border: none; color: var(--sub); text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+.progress i { display: block; height: 100%; background: var(--accent); }
+h2 { font-size: 20px; margin: 30px 0 12px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.kpi b { display: block; font-size: 28px; }
+.kpi span { color: var(--sub); font-size: 13px; }
+.lead { font-size: 18px; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; }
+.row { display: grid; grid-template-columns: minmax(0, 2.2fr) 70px minmax(0, 3fr); gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.row .name small { display: block; color: var(--sub); font-size: 12px; }
+.meter { position: relative; height: 14px; background: var(--line); border-radius: 7px; overflow: hidden; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; }
+.pts { color: var(--sub); font-size: 13px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wq { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; font-size: 15px; }
+.wq .s { font-weight: 600; margin-bottom: 4px; }
+.wq .a { color: var(--ok); } .wq .p { color: var(--bad); } .wq .w { color: var(--sub); }
+.empty { color: var(--sub); padding: 30px 0; text-align: center; }
+.foot { margin-top: 12px; color: var(--sub); font-size: 13px; }
+@media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, 1fr); } .card { padding: 18px; } .row { grid-template-columns: 1fr 60px; } .row .pts { grid-column: 1 / -1; } }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <h1 id="title">刷题</h1>
+  <div class="tabs"><button id="tab-q" class="on">刷题</button><button id="tab-r">报告</button></div>
+  <div class="meta" id="meta"></div>
+</div></header>
+<main>
+  <section id="view-q">
+    <div class="controls">
+      <span>模式</span>
+      <select id="mode">
+        <option value="smart">智能复习：错题和到期题优先，再出新题</option>
+        <option value="wrong">错题本：只做目前还没答对的题</option>
+        <option value="new">只出新题</option>
+      </select>
+      <span>范围</span>
+      <select id="scope"><option value="">全部知识点</option></select>
+    </div>
+    <div class="progress"><i id="prog" style="width:0"></i></div>
+    <div id="qbox"></div>
+  </section>
+  <section id="view-r" hidden></section>
+</main>
+<script>/*QUIZ_CONFIG*/</script>
+<script>
+(function () {
+  'use strict';
+  var ROUND = (window.QUIZ_CONFIG && window.QUIZ_CONFIG.round) || 20, KEYS = 'ABCD';
+  var DAY = 864e5, BOX_GAP = [0, 10 * 6e4, DAY, 3 * DAY, 7 * DAY, 21 * DAY];
+  var bank, qs = [], byId = {}, st = {}, flags = {};
+  var round = [], cur = null, view = [], sel = [], answered = false, t0 = 0, recent = [];
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var pct = function (x) { return x == null ? '—' : Math.round(x * 100) + '%'; };
+
+  function apply(r) {
+    var s = st[r.qid] || (st[r.qid] = { n: 0, ok: 0, box: 0, last: null, ts: 0 });
+    s.n++; s.ok += r.correct ? 1 : 0; s.last = !!r.correct; s.ts = Date.parse(r.ts) || Date.now();
+    s.box = r.correct ? Math.min(s.box + 1, 5) : 0;
+  }
+
+  function pool() {
+    var scope = $('scope').value;
+    return qs.filter(function (q) { return !flags[q.id] && (!scope || q.module + ' / ' + q.topic === scope || q.module === scope); });
+  }
+
+  function pick() {
+    var mode = $('mode').value, P = pool(), now = Date.now();
+    var fresh = P.filter(function (q) { return !recent.includes(q.id); });
+    var unseen = fresh.filter(function (q) { return !st[q.id]; });
+    var wrong = fresh.filter(function (q) { return st[q.id] && !st[q.id].last; });
+    if (mode === 'wrong') return rand(wrong.length ? wrong : P.filter(function (q) { return st[q.id] && !st[q.id].last; }));
+    if (mode === 'new') return rand(unseen);
+    if (wrong.length && Math.random() < 0.6) return rand(wrong);
+    var due = fresh.filter(function (q) { var s = st[q.id]; return s && s.last && now - s.ts >= BOX_GAP[s.box]; })
+      .sort(function (a, b) { return st[a.id].ts - st[b.id].ts; });
+    if (due.length && (Math.random() < 0.4 || !unseen.length)) return due[0];
+    if (unseen.length) {
+      var seenTopics = {};
+      qs.forEach(function (q) { if (st[q.id]) seenTopics[q.topic] = 1; });
+      var cold = unseen.filter(function (q) { return !seenTopics[q.topic]; });
+      return rand(cold.length && Math.random() < 0.5 ? cold : unseen);
+    }
+    return rand(wrong) || due[0] || null;
+  }
+  function rand(a) { return a && a.length ? a[Math.floor(Math.random() * a.length)] : null; }
+
+  function next() {
+    if (round.length >= ROUND) return summary();
+    cur = pick();
+    if (!cur) {
+      $('qbox').innerHTML = '<div class="card empty">' + ($('mode').value === 'wrong' ? '错题本是空的，目前做过的题最近一次都答对了。' : '这个范围里没有可出的题了，换个模式或范围。') + '</div>';
+      return;
+    }
+    view = cur.options.slice().sort(function () { return Math.random() - 0.5; });
+    sel = []; answered = false; t0 = Date.now();
+    render();
+  }
+
+  function render() {
+    var q = cur, multi = q.type === 'multi';
+    var h = '<div class="card"><div class="tags"><span class="tag">' + esc(q.module) + '</span><span class="tag">' + esc(q.topic) + '</span>' +
+      (multi ? '<span class="tag multi">多选</span>' : '<span class="tag">单选</span>') +
+      (st[q.id] ? '<span class="tag">做过 ' + st[q.id].n + ' 次</span>' : '<span class="tag">新题</span>') + '</div>' +
+      '<div class="stem">' + esc(q.stem) + '</div>';
+    view.forEach(function (o, i) {
+      var cls = 'opt';
+      if (answered) cls += o.ok ? ' right' : (sel.includes(i) ? ' wrong' : '');
+      else if (sel.includes(i)) cls += ' sel';
+      h += '<button class="' + cls + '" data-i="' + i + '"' + (answered ? ' disabled' : '') + '><span class="k">' + KEYS[i] + '</span><span>' + esc(o.text) +
+        (answered && (o.ok || sel.includes(i)) ? '<span class="why">' + esc(o.why) + '</span>' : '') + '</span></button>';
+    });
+    if (answered) {
+      var ok = isRight();
+      h += '<div class="verdict ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '答对了' : '答错了') + (q.point ? ' · 考点：' + esc(q.point) : '') + '</div>';
+      if (q.quote) h += '<div class="quote">原文：' + esc(q.quote) + '</div>';
+      h += '<div class="src">出处：' + esc(q.file) + '</div>';
+      h += '<div class="actions"><button class="btn primary" id="go">下一题</button><button class="linkbtn" id="flag">这题有问题，以后不再出</button><span class="hint">Enter 下一题</span></div>';
+    } else {
+      h += '<div class="actions"><button class="btn primary" id="go"' + (sel.length ? '' : ' disabled') + '>提交</button><span class="hint">' +
+        (multi ? '可选多项 · ' : '') + '按 A–D 或 1–4 选择，Enter 提交</span></div>';
+    }
+    $('qbox').innerHTML = h + '</div>';
+    $('prog').style.width = (round.length / ROUND * 100) + '%';
+  }
+
+  function isRight() {
+    var want = view.map(function (o, i) { return o.ok ? i : -1; }).filter(function (i) { return i >= 0; });
+    return want.length === sel.length && want.every(function (i) { return sel.includes(i); });
+  }
+
+  function choose(i) {
+    if (answered || i >= view.length) return;
+    if (cur.type === 'multi') sel = sel.includes(i) ? sel.filter(function (x) { return x !== i; }) : sel.concat(i);
+    else sel = [i];
+    render();
+  }
+
+  function submit() {
+    if (answered) return next();
+    if (!sel.length) return;
+    answered = true;
+    var r = { qid: cur.id, correct: isRight(), chosen: sel.map(function (i) { return view[i].text; }), ms: Date.now() - t0, mode: $('mode').value, ts: new Date().toISOString() };
+    apply(r);
+    round.push({ q: cur, ok: r.correct });
+    recent = recent.concat(cur.id).slice(-4);
+    fetch('/api/answer', { method: 'POST', body: JSON.stringify(r) });
+    render(); meta();
+  }
+
+  function summary() {
+    var ok = round.filter(function (x) { return x.ok; }).length, by = {};
+    round.forEach(function (x) { var b = by[x.q.topic] || (by[x.q.topic] = [0, 0]); b[0]++; b[1] += x.ok ? 1 : 0; });
+    var miss = Object.keys(by).filter(function (k) { return by[k][1] < by[k][0]; });
+    $('qbox').innerHTML = '<div class="card"><div class="stem">这一轮 ' + round.length + ' 题，答对 ' + ok + ' 题（' + pct(ok / round.length) + '）</div>' +
+      (miss.length ? '<p>这轮出错的知识点：' + miss.map(esc).join('、') + '。错题会在后面几轮优先再出。</p>' : '<p>这一轮全对。</p>') +
+      '<div class="actions"><button class="btn primary" id="go">再来一轮</button><button class="btn" id="see">看报告</button></div></div>';
+    $('prog').style.width = '100%';
+    round = [];
+  }
+
+  function meta() {
+    var seen = 0, last = 0, today = 0, todayOk = 0, d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    qs.forEach(function (q) { var s = st[q.id]; if (s) { seen++; last += s.last ? 1 : 0; } });
+    $('meta').textContent = '做过 ' + seen + '/' + qs.length + ' 题 · 掌握 ' + pct(seen ? last / seen : null) + ' · 本轮 ' + round.length + '/' + ROUND;
+  }
+
+  function meter(x) {
+    if (x == null) return '<div class="meter"></div>';
+    var c = x >= 0.8 ? 'var(--ok)' : x >= 0.5 ? 'var(--accent)' : 'var(--bad)';
+    return '<div class="meter"><i style="width:' + Math.max(x * 100, 3) + '%;background:' + c + '"></i></div>';
+  }
+
+  function report() {
+    $('view-r').innerHTML = '<div class="empty">统计中…</div>';
+    fetch('/api/report').then(function (r) { return r.json(); }).then(function (s) {
+      if (!s.attempts) { $('view-r').innerHTML = '<div class="empty">还没有作答记录，先刷一轮。</div>'; return; }
+      var top = s.weak.slice(0, 3).map(function (t) { return t.topic; });
+      var h = '<div class="lead">' + (top.length ? '最该补的：<b>' + top.map(esc).join('</b>、<b>') + '</b>。' : '做过的知识点最近一次都答对了。') +
+        ' 你做过 ' + s.seen + '/' + s.total + ' 题，第一次见到就答对 ' + pct(s.first_acc) + '。</div>';
+      h += '<div class="kpis">' +
+        '<div class="kpi"><b>' + pct(s.first_acc) + '</b><span>首答正确率（原本会不会）</span></div>' +
+        '<div class="kpi"><b>' + pct(s.mastery) + '</b><span>掌握度（最近一次答对）</span></div>' +
+        '<div class="kpi"><b>' + s.wrong_now + '</b><span>错题本里还剩</span></div>' +
+        '<div class="kpi"><b>' + s.seen + '<small style="font-size:16px;color:var(--sub)"> / ' + s.total + '</small></b><span>做过的题</span></div></div>';
+      h += '<h2>薄弱知识点</h2>';
+      h += s.weak.length ? s.weak.slice(0, 12).map(function (t) {
+        return '<div class="row"><div class="name">' + esc(t.topic) + '<small>' + esc(t.module) + ' · 做过 ' + t.seen + '/' + t.total + ' 题 · 首答 ' + pct(t.first_acc) + '</small></div>' +
+          '<div class="num">' + pct(t.mastery) + '</div><div>' + meter(t.mastery) +
+          (t.wrong_points.length ? '<div class="pts">没掌握：' + t.wrong_points.map(esc).join('、') + '</div>' : '') + '</div></div>';
+      }).join('') : '<div class="empty">至少做过 2 题的知识点才会进这里；目前没有掌握度不满的。</div>';
+      h += '<h2>各模块</h2>' + s.modules.map(function (m) {
+        return '<div class="row"><div class="name">' + esc(m.module) + '<small>做过 ' + m.seen + '/' + m.total + ' 题 · 首答 ' + pct(m.first_acc) + '</small></div><div class="num">' + pct(m.mastery) + '</div><div>' + meter(m.mastery) + '</div></div>';
+      }).join('');
+      if (s.repeat.length) {
+        h += '<h2>还没答对 / 反复答错的题</h2>' + s.repeat.slice(0, 15).map(function (r) {
+          return '<div class="wq"><div class="s">' + esc(r.stem) + '</div><div class="w">' + esc(r.topic) + ' · 错 ' + r.wrong_n + '/' + r.n + ' 次' + (r.last_ok ? ' · 最近一次已答对' : '') + '</div>' +
+            '<div class="a">正确：' + r.answer.map(esc).join('；') + '</div>' + (r.picked.length ? '<div class="p">你选过：' + r.picked.map(esc).join('；') + '</div>' : '') +
+            '<div class="w">要点：' + esc(r.why) + '</div></div>';
+        }).join('');
+      }
+      if (s.days.length) h += '<h2>每日</h2>' + s.days.map(function (d) {
+        return '<div class="row"><div class="name">' + d.day + '<small>' + d.n + ' 题</small></div><div class="num">' + pct(d.acc) + '</div><div>' + meter(d.acc) + '</div></div>';
+      }).join('');
+      if (s.untouched.length) h += '<h2>还没碰过的知识点（' + s.untouched.length + '）</h2><p class="pts">' + s.untouched.map(function (t) { return esc(t.topic); }).join('、') + '</p>';
+      h += '<div class="foot">口径：首答正确率 = 第一次见到就答对的比例；掌握度 = 最近一次答对的比例。标记「有问题」的题不计入（' + s.flagged + ' 题）。</div>';
+      $('view-r').innerHTML = h;
+    });
+  }
+
+  function tab(r) {
+    $('tab-q').classList.toggle('on', !r); $('tab-r').classList.toggle('on', r);
+    $('view-q').hidden = r; $('view-r').hidden = !r;
+    if (r) report();
+  }
+
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('.opt'); if (o) return choose(+o.dataset.i);
+    if (e.target.id === 'go') return submit();
+    if (e.target.id === 'see') return tab(true);
+    if (e.target.id === 'flag') {
+      flags[cur.id] = 1;
+      fetch('/api/flag', { method: 'POST', body: JSON.stringify({ qid: cur.id, stem: cur.stem }) });
+      return next();
+    }
+    if (e.target.id === 'tab-q') return tab(false);
+    if (e.target.id === 'tab-r') return tab(true);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!$('view-q').hidden && !e.metaKey && !e.ctrlKey && e.target.tagName !== 'SELECT') {
+      var k = e.key.toUpperCase(), i = KEYS.indexOf(k);
+      if (i < 0 && k >= '1' && k <= '4') i = +k - 1;
+      if (i >= 0 && k.length === 1) { e.preventDefault(); return choose(i); }
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    }
+  });
+  ['mode', 'scope'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      try { localStorage.setItem('quiz-drill-' + id, $(id).value); } catch (e) {}
+      round = []; next(); meta();
+    });
+  });
+
+  Promise.all([fetch('/api/bank').then(function (r) { return r.json(); }), fetch('/api/log').then(function (r) { return r.json(); })]).then(function (res) {
+    bank = res[0]; qs = bank.questions; res[1].log.forEach(apply); res[1].flags.forEach(function (id) { flags[id] = 1; });
+    document.title = '刷题 · ' + bank.name; $('title').textContent = bank.name;
+    var mods = {}, opts = '';
+    qs.forEach(function (q) { (mods[q.module] = mods[q.module] || {})[q.topic] = 1; });
+    Object.keys(mods).sort().forEach(function (m) {
+      opts += '<optgroup label="' + esc(m) + '"><option value="' + esc(m) + '">整个模块：' + esc(m) + '</option>' +
+        Object.keys(mods[m]).map(function (t) { return '<option value="' + esc(m + ' / ' + t) + '">' + esc(t) + '</option>'; }).join('') + '</optgroup>';
+    });
+    $('scope').insertAdjacentHTML('beforeend', opts);
+    try { ['mode', 'scope'].forEach(function (id) { var v = localStorage.getItem('quiz-drill-' + id); if (v != null && [].some.call($(id).options, function (o) { return o.value === v; })) $(id).value = v; }); } catch (e) {}
+    meta(); next();
+    if (location.hash === '#report') tab(true);
+  });
+})();
+</script>
+</body>
+</html>
