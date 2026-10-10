@@ -1,0 +1,7 @@
+interface:
+  display_name: "Quiz Drill"
+  short_description: "任意本地知识库 → 选择题库（四关机器质检）→ 本地网页刷题 → 按知识点的薄弱点报告，并能给最弱的知识点加题"
+  default_prompt: "使用 $quiz-drill 把 <知识库路径> 做成选择题库，先 dry-run 看知识点划分，再试跑 3 块给我看题。"
+
+policy:
+  allow_implicit_invocation: true
