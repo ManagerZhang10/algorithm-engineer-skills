@@ -22,7 +22,8 @@
 | [fair-eval-protocol](skills/fair-eval-protocol/SKILL.md) | 横向对比前先把「怎么比」定死：输入按字节冻结并哈希、统一尺寸和解码参数、只在所有臂都成功的交集上算分、失败按类型单列、先读原始输出再起量。附 `freeze_manifest.py` 和 `intersect.py` | 比较模型、checkpoint、API 供应商、prompt 版本；LLM / VLM / Agent / 文生图 / 图像编辑都适用 |
 | [batch-vlm-requests](skills/batch-vlm-requests/SKILL.md) | 一批图片送多模态 API：内联 base64 还是 URL、走 batch 还是实时、先估成本再用真实 usage 校准、冻结实际提交的请求字节、按 ID 收结果并区分空输出 / 截断 / 拒答。附构建、估算、并发发送、汇总四个脚本 | 批量打标、蒸馏、LLM-as-judge、多 teacher 对比 |
 | [edit-drift-eval](skills/edit-drift-eval/SKILL.md) | 图像编辑模型多轮漂移评测：同一张图、同一串 prompt 连改 K 步，量框外背景漂移，出 N 栏并排对比视频 | 多轮编辑会不会越改越偏、几家编辑模型并排对比 |
-| [pelican-bicycle-eval](skills/pelican-bicycle-eval/SKILL.md) | 「鹈鹕骑自行车」SVG 测评做成可重复的：多次运行看稳定性，记 token 和折算消耗；也能用官方直连当基线，检查 API 中转有没有偷塞 input token、关掉思考 | 横评几家模型的 SVG 能力；怀疑中转通道降级 |
+| [pelican-bicycle-eval](skills/pelican-bicycle-eval/SKILL.md) | 「鹈鹕骑自行车」SVG 测评做成可重复的：多次运行看稳定性，记 token 和折算消耗；proxy-check 模式把官方直连和中转画在同一张看板上对比 | 横评几家模型的 SVG 能力；要一张通道对比的可视化看板 |
+| [api-relay-verify](skills/api-relay-verify/SKILL.md) | 拿官方直连当对照查 API 中转有没有注水：偷塞系统提示词、多算 token、换模型、调低思考档位。Claude 用签名回放出密码学证据，能还原塞进去的原文、认出生成它的模型。附 `api_relay_verify.py`（只用标准库） | 用某条中转跑评测或上生产之前；怀疑中转降智、偷换模型、多收钱 |
 
 ### 读论文与讲解
 
@@ -64,7 +65,8 @@
 
 **评测类：**`fair-eval-protocol` 管「怎么比才公平」，是所有对比实验的前置；`batch-vlm-requests`
 管「请求怎么发、结果怎么收」；`edit-drift-eval` 和 `pelican-bicycle-eval` 是两个具体的评测，
-跑之前同样按 `fair-eval-protocol` 定口径。
+跑之前同样按 `fair-eval-protocol` 定口径。要判定 API 中转有没有注水用 `api-relay-verify`，它出结论；
+`pelican-bicycle-eval` 的 proxy-check 只把通道差异画成看板，适合展示，不下结论。
 
 **读论文：**`paper-quick-read` 是快读，目标是一份能逐句核对页码的导读。要一站一站精读、
 对着代码走一遍信息流，推荐第三方的 [skJack/kelip-paper-reading](https://github.com/skJack/kelip-paper-reading)。
@@ -119,7 +121,7 @@ ln -s "$PWD/skills/fair-eval-protocol" ~/.claude/skills/
 
 ## 来源与边界
 
-- 作者本人编写：`fair-eval-protocol`、`batch-vlm-requests`、`paper-quick-read`、`pelican-bicycle-eval`、
+- 作者本人编写：`fair-eval-protocol`、`batch-vlm-requests`、`paper-quick-read`、`pelican-bicycle-eval`、`api-relay-verify`、
   `edit-drift-eval`、`paper-arch-figure`、`deck-portrait`、`xhs-43-deck`、`lecture-video-cut`、
   `quiz-drill`、三个写作技能和 `xiaohongshu-content-extraction`。公开前做过脱敏：去掉了真实姓名、本机路径、
   内部项目代号、存储桶和内网地址，方法论部分未删减。
@@ -152,7 +154,8 @@ from tasks the author repeats at work, with the pitfalls written down as rules. 
 | [fair-eval-protocol](skills/fair-eval-protocol/SKILL.md) | Freeze the eval protocol before comparing models / checkpoints / providers / prompts: hashed input manifest, unified sizes and decoding params, score only on the intersection every arm completed, failures reported by type. Ships `freeze_manifest.py` and `intersect.py`. |
 | [batch-vlm-requests](skills/batch-vlm-requests/SKILL.md) | Batch image requests to multimodal APIs: inline base64 vs URL, batch vs realtime, cost estimate calibrated on real usage, frozen request bytes, results joined by ID with empty / truncated / refused outputs separated. |
 | [edit-drift-eval](skills/edit-drift-eval/SKILL.md) | Multi-turn drift eval for image-edit models, with side-by-side comparison videos. |
-| [pelican-bicycle-eval](skills/pelican-bicycle-eval/SKILL.md) | Repeatable "pelican riding a bicycle" SVG eval with stability and token accounting; also detects API relays that inject tokens or suppress reasoning. |
+| [pelican-bicycle-eval](skills/pelican-bicycle-eval/SKILL.md) | Repeatable "pelican riding a bicycle" SVG eval with stability and token accounting; proxy-check mode draws official vs relay lanes on one board. |
+| [api-relay-verify](skills/api-relay-verify/SKILL.md) | Audit an API relay against the official API: injected system prompts, inflated tokens, swapped models, lowered reasoning effort. For Claude, replays the relay's thinking blocks on the official API so the signature proves the model and recovers any injected text. |
 | [paper-quick-read](skills/paper-quick-read/SKILL.md) | 5–10 minute paper read: extract page-numbered text and figure pages, then write a guide where every claim carries `[p.N]`, with contributions split into claimed / supported by experiments / not separately attributable. |
 | [paper-arch-figure](skills/paper-arch-figure/SKILL.md) | Paper-style neural network architecture figures as editable draw.io, sourced from code. |
 | [tech-talk-deck](skills/tech-talk-deck/SKILL.md) | Single-file HTML tech-talk decks: 15 page types, goal-before-mechanism titles, picture-first highlighting, auto-routed SVG arrows, render self-check. Derived from skJack/kelip-slide (MIT). |

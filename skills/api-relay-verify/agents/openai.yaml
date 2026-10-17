@@ -1,0 +1,7 @@
+interface:
+  display_name: "API Relay Verify · API 中转验真"
+  short_description: "拿官方直连当对照查 API 中转：注入、换模型、调低思考档位；Claude 用签名回放出密码学证据"
+  default_prompt: "使用 $api-relay-verify 检查这条中转：用官方直连当对照，跑注入、签名回放、思考档位和元数据四项，告诉我模型是不是真的、有没有往请求里塞东西。"
+
+policy:
+  allow_implicit_invocation: true
